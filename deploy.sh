@@ -1,27 +1,37 @@
 #!/bin/bash
 # ==========================================
-# 🚀 DEPLOY AUTOMÁTICO APACHE v2
+# 🚀 DEPLOY AUTOMÁTICO APACHE v3
 # Autor: Bruno Trindade + GPT-5
 # Sistema: Ubuntu / Debian
 # ==========================================
 
-# Cores para logs
+# ------------------------------
+# Cores e Emojis
 GREEN=$(tput setaf 2)
 YELLOW=$(tput setaf 3)
 RED=$(tput setaf 1)
 BLUE=$(tput setaf 4)
 RESET=$(tput sgr0)
+CHECK="✅"
+WARN="⚠️"
+ERROR="❌"
 
 APACHE_DIR="/var/www"
 PORTS_FILE="/etc/apache2/ports.conf"
+LOG_DIR="$HOME/deploy_logs"
+mkdir -p "$LOG_DIR"
+
+# Log completo
+exec > >(tee -a "$LOG_DIR/deploy_$(date +%Y%m%d_%H%M%S).log") 2>&1
 
 echo "${BLUE}==========================================${RESET}"
-echo "${GREEN}        🚀 DEPLOY AUTOMÁTICO APACHE v2${RESET}"
+echo "${GREEN}        🚀 DEPLOY AUTOMÁTICO APACHE v3${RESET}"
 echo "${BLUE}==========================================${RESET}"
 echo ""
 
+# ------------------------------
 # 1️⃣ Fonte do projeto
-echo "Como deseja obter o projeto?"
+echo "[1/10] 🔹 Fonte do projeto"
 select source_type in "Diretório local" "Git Clone"; do
     case $source_type in
         "Diretório local")
@@ -33,7 +43,7 @@ select source_type in "Diretório local" "Git Clone"; do
             read -p "Digite o link do repositório Git: " GIT_LINK
             PROJECT_NAME=$(basename "$GIT_LINK" .git)
             PROJECT_PATH="$APACHE_DIR/$PROJECT_NAME"
-            git clone "$GIT_LINK" "$PROJECT_PATH"
+            git clone "$GIT_LINK" "$PROJECT_PATH" || { echo "${ERROR} Falha ao clonar repositório"; exit 1; }
             break
             ;;
         *)
@@ -42,23 +52,26 @@ select source_type in "Diretório local" "Git Clone"; do
     esac
 done
 
-# 2️⃣ Detectar automaticamente o usuário supervisor (Apache)
-SUPERVISOR_USER=$(ps aux | grep apache2 | grep -v grep | head -n1 | awk '{print $1}')
-SUPERVISOR_USER=${SUPERVISOR_USER:-www-data}
-echo ""
-echo "${BLUE}🔐 Ajustando permissões...${RESET}"
+# ------------------------------
+# 2️⃣ Usuário supervisor
+SUPERVISOR_USER="www-data"
+echo "[2/10] 🔹 Usuário supervisor detectado: $SUPERVISOR_USER"
+
+# ------------------------------
+# 3️⃣ Ajustar permissões
+echo "[3/10] 🔹 Ajustando permissões..."
 if [ -d "$PROJECT_PATH" ]; then
     sudo chown -R "$SUPERVISOR_USER":www-data "$PROJECT_PATH"
     sudo chmod -R 775 "$PROJECT_PATH"
-    echo "${GREEN}Permissões ajustadas para $SUPERVISOR_USER (owner) e www-data (group)${RESET}"
+    echo "${CHECK} Permissões ajustadas para $SUPERVISOR_USER (owner) e www-data (group)"
 else
-    echo "${RED}❌ Caminho $PROJECT_PATH não encontrado.${RESET}"
+    echo "${ERROR} Caminho $PROJECT_PATH não encontrado."
     exit 1
 fi
 
-# 3️⃣ Tipo de projeto
-echo ""
-echo "Selecione o tipo de projeto:"
+# ------------------------------
+# 4️⃣ Tipo de projeto
+echo "[4/10] 🔹 Tipo de projeto"
 select project_type in "Laravel" "Vue" "Node" "Python" "HTML/PHP Simples"; do
     case $project_type in
         "Laravel"|"Vue"|"Node"|"Python"|"HTML/PHP Simples")
@@ -70,9 +83,9 @@ select project_type in "Laravel" "Vue" "Node" "Python" "HTML/PHP Simples"; do
     esac
 done
 
-# 4️⃣ Tipo de acesso
-echo ""
-echo "Como será o acesso?"
+# ------------------------------
+# 5️⃣ Tipo de acesso
+echo "[5/10] 🔹 Tipo de acesso"
 select access_type in "Domínio" "Porta"; do
     case $access_type in
         "Domínio")
@@ -82,7 +95,6 @@ select access_type in "Domínio" "Porta"; do
             ;;
         "Porta")
             USE_PORT=true
-            echo ""
             echo "${BLUE}🔍 Verificando portas usadas...${RESET}"
             USED_PORTS=$(ss -tuln | awk '{print $5}' | grep -oE '[0-9]+$' | sort -n | uniq | grep -E '^8[0-9]{3}$')
             echo "Portas em uso: ${USED_PORTS:-nenhuma}"
@@ -95,6 +107,10 @@ select access_type in "Domínio" "Porta"; do
             echo "Porta sugerida livre: $SUGGESTED_PORT"
             read -p "Digite a porta desejada (padrão $SUGGESTED_PORT): " CUSTOM_PORT
             PORT=${CUSTOM_PORT:-$SUGGESTED_PORT}
+            if ss -tuln | grep -q ":$PORT "; then
+                echo "${ERROR} Porta $PORT já está em uso! Abortando."
+                exit 1
+            fi
             break
             ;;
         *)
@@ -103,33 +119,42 @@ select access_type in "Domínio" "Porta"; do
     esac
 done
 
-# 5️⃣ Ajustar DocumentRoot
+# ------------------------------
+# 6️⃣ Ajustar DocumentRoot
 case $project_type in
     "Laravel") DOC_ROOT="${PROJECT_PATH}/public" ;;
     "Vue") DOC_ROOT="${PROJECT_PATH}/dist" ;;
     *) DOC_ROOT="${PROJECT_PATH}" ;;
 esac
 
-# 6️⃣ Garantir Listen
+# Check arquivo inicial
+echo "[6/10] 🔹 Verificando arquivo inicial..."
+if [ -f "$DOC_ROOT/index.php" ] || [ -f "$DOC_ROOT/index.html" ]; then
+    echo "${CHECK} Arquivo inicial encontrado em $DOC_ROOT"
+else
+    echo "${WARN} Nenhum arquivo inicial encontrado em $DOC_ROOT"
+    read -p "Deseja continuar mesmo assim? (s/n): " CONTINUE
+    [[ ! "$CONTINUE" =~ ^[Ss]$ ]] && { echo "🚫 Deploy cancelado"; exit 1; }
+fi
+
+# ------------------------------
+# 7️⃣ Listen e VirtualHost
+echo "[7/10] 🔹 Criando VirtualHost Apache..."
 if [ "$USE_PORT" = true ]; then
-    if ! sudo grep -qE "^\s*Listen\s+${PORT}\b" "$PORTS_FILE"; then
-        echo "Listen ${PORT}" | sudo tee -a "$PORTS_FILE" >/dev/null
-        echo "${YELLOW}Adicionando Listen ${PORT} em $PORTS_FILE${RESET}"
+    if ! sudo grep -qE "^\s*Listen\s+$PORT\b" "$PORTS_FILE"; then
+        echo "Listen $PORT" | sudo tee -a "$PORTS_FILE" >/dev/null
     fi
-    PORT_LINE=":${PORT}"
+    PORT_LINE=":$PORT"
     SERVER_NAME="localhost"
 else
     if ! sudo grep -qE "^\s*Listen\s+80\b" "$PORTS_FILE"; then
         echo "Listen 80" | sudo tee -a "$PORTS_FILE" >/dev/null
     fi
     PORT_LINE=":80"
-    SERVER_NAME="${DOMAIN}"
+    SERVER_NAME="$DOMAIN"
 fi
 
-# 7️⃣ Criar VirtualHost
 CONF_PATH="/etc/apache2/sites-available/${PROJECT_NAME}.conf"
-echo "${BLUE}🛠️ Criando configuração Apache...${RESET}"
-
 sudo bash -c "cat > $CONF_PATH" <<EOF
 <VirtualHost *${PORT_LINE}>
     ServerAdmin webmaster@${SERVER_NAME}
@@ -149,48 +174,30 @@ EOF
 sudo a2enmod rewrite proxy proxy_http headers ssl > /dev/null 2>&1
 sudo a2ensite "${PROJECT_NAME}.conf" > /dev/null 2>&1
 
+# ------------------------------
 # 8️⃣ Instalação de dependências
-echo ""
-echo "${BLUE}📦 Instalando dependências...${RESET}"
+echo "[8/10] 📦 Instalando dependências..."
 cd "$PROJECT_PATH" || exit
 
 case $project_type in
     "Laravel")
-        if command -v composer &>/dev/null; then
-            composer install
-            if [ ! -f .env ]; then
-                echo "${YELLOW}Gerando arquivo .env...${RESET}"
-                cp .env.example .env
-            fi
-            php artisan key:generate
-        else
-            echo "${RED}Composer não encontrado. Pule esta etapa.${RESET}"
-        fi
+        command -v composer &>/dev/null && { composer install; [ ! -f .env ] && cp .env.example .env; php artisan key:generate; } || echo "${WARN} Composer não encontrado"
         ;;
     "Vue"|"Node")
-        if command -v npm &>/dev/null; then
-            npm install
-            [ "$project_type" = "Vue" ] && npm run build
-        else
-            echo "${RED}npm não encontrado.${RESET}"
-        fi
+        command -v npm &>/dev/null && { npm install; [ "$project_type" = "Vue" ] && npm run build; } || echo "${WARN} npm não encontrado"
         ;;
     "Python")
-        if command -v pip &>/dev/null; then
-            pip install -r requirements.txt
-        else
-            echo "${RED}pip não encontrado.${RESET}"
-        fi
+        command -v pip &>/dev/null && pip install -r requirements.txt || echo "${WARN} pip não encontrado"
         ;;
     *)
-        echo "${YELLOW}Nenhuma dependência a instalar.${RESET}"
+        echo "${YELLOW}Nenhuma dependência a instalar${RESET}"
         ;;
 esac
 
-# 9️⃣ SSL (se domínio)
+# ------------------------------
+# 9️⃣ SSL
 if [ "$USE_PORT" = false ]; then
-    echo ""
-    echo "Deseja habilitar HTTPS (Certbot)?"
+    echo "[9/10] 🔹 Configurando SSL (Certbot)"
     select enable_ssl in "Sim" "Não"; do
         case $enable_ssl in
             "Sim")
@@ -203,19 +210,16 @@ if [ "$USE_PORT" = false ]; then
     done
 fi
 
+# ------------------------------
 # 🔁 10️⃣ Recarregar Apache
-echo ""
-echo "${BLUE}🔁 Recarregando Apache...${RESET}"
+echo "[10/10] 🔁 Recarregando Apache..."
 sudo systemctl reload apache2
 
+# ------------------------------
 # ✅ Finalização
 echo ""
 echo "${BLUE}==========================================${RESET}"
 echo "${GREEN}✅ DEPLOY CONCLUÍDO!${RESET}"
-echo "Projeto: ${PROJECT_NAME}"
-if [ "$USE_PORT" = true ]; then
-    echo "Acesso: ${YELLOW}http://localhost:${PORT}${RESET}"
-else
-    echo "Acesso: ${YELLOW}https://${DOMAIN}${RESET}"
-fi
+echo "Projeto: $PROJECT_NAME"
+echo "Acesso: ${USE_PORT:+http://localhost:$PORT}${DOMAIN:+https://$DOMAIN}"
 echo "${BLUE}==========================================${RESET}"
