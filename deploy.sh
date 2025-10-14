@@ -4,7 +4,7 @@
 # Autor: Bruno Trindade + GPT-5
 # Sistema: Ubuntu / Debian
 # ==========================================
-
+# curl -s https://raw.githubusercontent.com/BrunohTrindade/deploy.sh/refs/heads/main/deploy.sh | bash
 # ------------------------------
 # Cores e Emojis
 GREEN=$(tput setaf 2)
@@ -50,7 +50,7 @@ select source_type in "Diretório local" "Git Clone"; do
             echo "${RED}Escolha inválida.${RESET}"
             ;;
     esac
-done
+done < /dev/tty
 
 # ------------------------------
 # 2️⃣ Usuário supervisor
@@ -81,7 +81,7 @@ select project_type in "Laravel" "Vue" "Node" "Python" "HTML/PHP Simples"; do
             echo "${RED}Escolha inválida.${RESET}"
             ;;
     esac
-done
+done < /dev/tty
 
 # ------------------------------
 # 5️⃣ Tipo de acesso
@@ -117,7 +117,7 @@ select access_type in "Domínio" "Porta"; do
             echo "${RED}Escolha inválida.${RESET}"
             ;;
     esac
-done
+done < /dev/tty
 
 # ------------------------------
 # 6️⃣ Ajustar DocumentRoot
@@ -207,7 +207,7 @@ if [ "$USE_PORT" = false ]; then
                 ;;
             "Não") break ;;
         esac
-    done
+    done < /dev/tty
 fi
 
 # ------------------------------
