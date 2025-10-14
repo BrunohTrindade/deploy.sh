@@ -29,18 +29,26 @@ echo "${GREEN}        🚀 DEPLOY AUTOMÁTICO APACHE v3${RESET}"
 echo "${BLUE}==========================================${RESET}"
 echo ""
 
-# ------------------------------
-# 1️⃣ Fonte do projeto
-echo "[1/10] 🔹 Fonte do projeto"
-select source_type in "Diretório local" "Git Clone"; do
+# ══════════════════════════════
+# 📂 1️⃣ FONTE DO PROJETO
+# ══════════════════════════════
+echo ""
+echo "${BLUE}┌─────────────────────────────────────────────┐${RESET}"
+echo "${BLUE}│          📂 [1/10] FONTE DO PROJETO         │${RESET}"
+echo "${BLUE}└─────────────────────────────────────────────┘${RESET}"
+echo "${YELLOW}� Escolha de onde vem seu projeto:${RESET}"
+echo ""
+select source_type in "📁 Diretório local" "🌐 Git Clone"; do
     case $source_type in
-        "Diretório local")
-            read -p "Digite o caminho completo do projeto (ex: /var/www/meusite): " PROJECT_PATH
+        "📁 Diretório local")
+            echo "${GREEN}📁 Você escolheu: Diretório local${RESET}"
+            read -p "${BLUE}💭 Digite o caminho completo do projeto (ex: /var/www/meusite): ${RESET}" PROJECT_PATH
             PROJECT_NAME=$(basename "$PROJECT_PATH")
             break
             ;;
-        "Git Clone")
-            read -p "Digite o link do repositório Git: " GIT_LINK
+        "🌐 Git Clone")
+            echo "${GREEN}🌐 Você escolheu: Git Clone${RESET}"
+            read -p "${BLUE}💭 Digite o link do repositório Git: ${RESET}" GIT_LINK
             PROJECT_NAME=$(basename "$GIT_LINK" .git)
             PROJECT_PATH="$APACHE_DIR/$PROJECT_NAME"
             git clone "$GIT_LINK" "$PROJECT_PATH" || { echo "${ERROR} Falha ao clonar repositório"; exit 1; }
@@ -52,14 +60,24 @@ select source_type in "Diretório local" "Git Clone"; do
     esac
 done < /dev/tty
 
-# ------------------------------
-# 2️⃣ Usuário supervisor
+# ══════════════════════════════
+# 👤 2️⃣ USUÁRIO SUPERVISOR
+# ══════════════════════════════
 SUPERVISOR_USER="www-data"
-echo "[2/10] 🔹 Usuário supervisor detectado: $SUPERVISOR_USER"
+echo ""
+echo "${BLUE}┌─────────────────────────────────────────────┐${RESET}"
+echo "${BLUE}│        👤 [2/10] USUÁRIO SUPERVISOR         │${RESET}"
+echo "${BLUE}└─────────────────────────────────────────────┘${RESET}"
+echo "${GREEN}� Usuário supervisor detectado: ${YELLOW}$SUPERVISOR_USER${RESET}"
 
-# ------------------------------
-# 3️⃣ Ajustar permissões
-echo "[3/10] 🔹 Ajustando permissões..."
+# ══════════════════════════════
+# 🔒 3️⃣ AJUSTAR PERMISSÕES
+# ══════════════════════════════
+echo ""
+echo "${BLUE}┌─────────────────────────────────────────────┐${RESET}"
+echo "${BLUE}│        🔒 [3/10] AJUSTAR PERMISSÕES         │${RESET}"
+echo "${BLUE}└─────────────────────────────────────────────┘${RESET}"
+echo "${YELLOW}� Configurando permissões de segurança...${RESET}"
 if [ -d "$PROJECT_PATH" ]; then
     sudo chown -R "$SUPERVISOR_USER":www-data "$PROJECT_PATH"
     sudo chmod -R 775 "$PROJECT_PATH"
@@ -69,12 +87,18 @@ else
     exit 1
 fi
 
-# ------------------------------
-# 4️⃣ Tipo de projeto
-echo "[4/10] 🔹 Tipo de projeto"
-select project_type in "Laravel" "Vue" "Node" "Python" "HTML/PHP Simples"; do
+# ══════════════════════════════
+# 🚀 4️⃣ TIPO DE PROJETO
+# ══════════════════════════════
+echo ""
+echo "${BLUE}┌─────────────────────────────────────────────┐${RESET}"
+echo "${BLUE}│         🚀 [4/10] TIPO DE PROJETO          │${RESET}"
+echo "${BLUE}└─────────────────────────────────────────────┘${RESET}"
+echo "${YELLOW}� Selecione o tipo do seu projeto:${RESET}"
+echo ""
+select project_type in "⚡ Laravel" "🌟 Vue" "🟢 Node.js" "🐍 Python" "📄 HTML/PHP Simples"; do
     case $project_type in
-        "Laravel"|"Vue"|"Node"|"Python"|"HTML/PHP Simples")
+        "⚡ Laravel"|"🌟 Vue"|"🟢 Node.js"|"🐍 Python"|"📄 HTML/PHP Simples")
             break
             ;;
         *)
@@ -83,29 +107,37 @@ select project_type in "Laravel" "Vue" "Node" "Python" "HTML/PHP Simples"; do
     esac
 done < /dev/tty
 
-# ------------------------------
-# 5️⃣ Tipo de acesso
-echo "[5/10] 🔹 Tipo de acesso"
-select access_type in "Domínio" "Porta"; do
+# ══════════════════════════════
+# 🌐 5️⃣ TIPO DE ACESSO
+# ══════════════════════════════
+echo ""
+echo "${BLUE}┌─────────────────────────────────────────────┐${RESET}"
+echo "${BLUE}│         🌐 [5/10] TIPO DE ACESSO           │${RESET}"
+echo "${BLUE}└─────────────────────────────────────────────┘${RESET}"
+echo "${YELLOW}� Como você quer acessar seu projeto?${RESET}"
+echo ""
+select access_type in "🌍 Domínio" "🔌 Porta"; do
     case $access_type in
-        "Domínio")
-            read -p "Digite o domínio (ex: exemplo.com): " DOMAIN
+        "🌍 Domínio")
+            echo "${GREEN}🌍 Você escolheu: Acesso por domínio${RESET}"
+            read -p "${BLUE}💭 Digite o domínio (ex: exemplo.com): ${RESET}" DOMAIN
             USE_PORT=false
             break
             ;;
-        "Porta")
+        "🔌 Porta")
+            echo "${GREEN}🔌 Você escolheu: Acesso por porta${RESET}"
             USE_PORT=true
             echo "${BLUE}🔍 Verificando portas usadas...${RESET}"
             USED_PORTS=$(ss -tuln | awk '{print $5}' | grep -oE '[0-9]+$' | sort -n | uniq | grep -E '^8[0-9]{3}$')
-            echo "Portas em uso: ${USED_PORTS:-nenhuma}"
+            echo "${YELLOW}📊 Portas em uso: ${USED_PORTS:-nenhuma}${RESET}"
             for i in {8000..9000}; do
                 if ! echo "$USED_PORTS" | grep -q "$i"; then
                     SUGGESTED_PORT=$i
                     break
                 fi
             done
-            echo "Porta sugerida livre: $SUGGESTED_PORT"
-            read -p "Digite a porta desejada (padrão $SUGGESTED_PORT): " CUSTOM_PORT
+            echo "${GREEN}💡 Porta sugerida livre: ${YELLOW}$SUGGESTED_PORT${RESET}"
+            read -p "${BLUE}💭 Digite a porta desejada (padrão $SUGGESTED_PORT): ${RESET}" CUSTOM_PORT
             PORT=${CUSTOM_PORT:-$SUGGESTED_PORT}
             if ss -tuln | grep -q ":$PORT "; then
                 echo "${ERROR} Porta $PORT já está em uso! Abortando."
@@ -120,26 +152,37 @@ select access_type in "Domínio" "Porta"; do
 done < /dev/tty
 
 # ------------------------------
-# 6️⃣ Ajustar DocumentRoot
+# 📁 Ajustar DocumentRoot baseado no projeto
 case $project_type in
-    "Laravel") DOC_ROOT="${PROJECT_PATH}/public" ;;
-    "Vue") DOC_ROOT="${PROJECT_PATH}/dist" ;;
+    "⚡ Laravel") DOC_ROOT="${PROJECT_PATH}/public" ;;
+    "🌟 Vue") DOC_ROOT="${PROJECT_PATH}/dist" ;;
     *) DOC_ROOT="${PROJECT_PATH}" ;;
 esac
 
-# Check arquivo inicial
-echo "[6/10] 🔹 Verificando arquivo inicial..."
+# ══════════════════════════════
+# 📋 6️⃣ VERIFICAR ESTRUTURA
+# ══════════════════════════════
+echo ""
+echo "${BLUE}┌─────────────────────────────────────────────┐${RESET}"
+echo "${BLUE}│        📋 [6/10] VERIFICAR ESTRUTURA        │${RESET}"
+echo "${BLUE}└─────────────────────────────────────────────┘${RESET}"
+echo "${YELLOW}� Verificando arquivo inicial do projeto...${RESET}"
 if [ -f "$DOC_ROOT/index.php" ] || [ -f "$DOC_ROOT/index.html" ]; then
     echo "${CHECK} Arquivo inicial encontrado em $DOC_ROOT"
 else
     echo "${WARN} Nenhum arquivo inicial encontrado em $DOC_ROOT"
-    read -p "Deseja continuar mesmo assim? (s/n): " CONTINUE
+    read -p "${YELLOW}❓ Deseja continuar mesmo assim? (s/n): ${RESET}" CONTINUE
     [[ ! "$CONTINUE" =~ ^[Ss]$ ]] && { echo "🚫 Deploy cancelado"; exit 1; }
 fi
 
-# ------------------------------
-# 7️⃣ Listen e VirtualHost
-echo "[7/10] 🔹 Criando VirtualHost Apache..."
+# ══════════════════════════════
+# ⚙️ 7️⃣ CONFIGURAR APACHE
+# ══════════════════════════════
+echo ""
+echo "${BLUE}┌─────────────────────────────────────────────┐${RESET}"
+echo "${BLUE}│        ⚙️ [7/10] CONFIGURAR APACHE          │${RESET}"
+echo "${BLUE}└─────────────────────────────────────────────┘${RESET}"
+echo "${YELLOW}� Criando VirtualHost Apache...${RESET}"
 if [ "$USE_PORT" = true ]; then
     if ! sudo grep -qE "^\s*Listen\s+$PORT\b" "$PORTS_FILE"; then
         echo "Listen $PORT" | sudo tee -a "$PORTS_FILE" >/dev/null
@@ -174,52 +217,80 @@ EOF
 sudo a2enmod rewrite proxy proxy_http headers ssl > /dev/null 2>&1
 sudo a2ensite "${PROJECT_NAME}.conf" > /dev/null 2>&1
 
-# ------------------------------
-# 8️⃣ Instalação de dependências
-echo "[8/10] 📦 Instalando dependências..."
+# ══════════════════════════════
+# 📦 8️⃣ INSTALAR DEPENDÊNCIAS
+# ══════════════════════════════
+echo ""
+echo "${BLUE}┌─────────────────────────────────────────────┐${RESET}"
+echo "${BLUE}│       📦 [8/10] INSTALAR DEPENDÊNCIAS       │${RESET}"
+echo "${BLUE}└─────────────────────────────────────────────┘${RESET}"
+echo "${YELLOW}⚡ Instalando dependências do projeto...${RESET}"
 cd "$PROJECT_PATH" || exit
 
 case $project_type in
-    "Laravel")
+    "⚡ Laravel")
+        echo "${BLUE}⚡ Processando projeto Laravel...${RESET}"
         command -v composer &>/dev/null && { composer install; [ ! -f .env ] && cp .env.example .env; php artisan key:generate; } || echo "${WARN} Composer não encontrado"
         ;;
-    "Vue"|"Node")
-        command -v npm &>/dev/null && { npm install; [ "$project_type" = "Vue" ] && npm run build; } || echo "${WARN} npm não encontrado"
+    "🌟 Vue"|"🟢 Node.js")
+        echo "${BLUE}🌟 Processando projeto ${project_type}...${RESET}"
+        command -v npm &>/dev/null && { npm install; [[ "$project_type" == *"Vue"* ]] && npm run build; } || echo "${WARN} npm não encontrado"
         ;;
-    "Python")
+    "🐍 Python")
+        echo "${BLUE}🐍 Processando projeto Python...${RESET}"
         command -v pip &>/dev/null && pip install -r requirements.txt || echo "${WARN} pip não encontrado"
         ;;
     *)
-        echo "${YELLOW}Nenhuma dependência a instalar${RESET}"
+        echo "${YELLOW}📄 Projeto HTML/PHP - Nenhuma dependência a instalar${RESET}"
         ;;
 esac
 
-# ------------------------------
-# 9️⃣ SSL
+# ══════════════════════════════
+# 🔐 9️⃣ CONFIGURAR SSL
+# ══════════════════════════════
 if [ "$USE_PORT" = false ]; then
-    echo "[9/10] 🔹 Configurando SSL (Certbot)"
-    select enable_ssl in "Sim" "Não"; do
+    echo ""
+    echo "${BLUE}┌─────────────────────────────────────────────┐${RESET}"
+    echo "${BLUE}│         🔐 [9/10] CONFIGURAR SSL            │${RESET}"
+    echo "${BLUE}└─────────────────────────────────────────────┘${RESET}"
+    echo "${YELLOW}� Deseja configurar SSL/HTTPS? (Recomendado)${RESET}"
+    echo ""
+    select enable_ssl in "✅ Sim" "❌ Não"; do
         case $enable_ssl in
-            "Sim")
+            "✅ Sim")
+                echo "${GREEN}✅ Configurando SSL com Certbot...${RESET}"
                 sudo apt install -y certbot python3-certbot-apache
                 sudo certbot --apache -d "$DOMAIN"
                 break
                 ;;
-            "Não") break ;;
+            "❌ Não") 
+                echo "${YELLOW}❌ SSL não será configurado${RESET}"
+                break 
+                ;;
         esac
     done < /dev/tty
 fi
 
-# ------------------------------
-# 🔁 10️⃣ Recarregar Apache
-echo "[10/10] 🔁 Recarregando Apache..."
+# ══════════════════════════════
+# � 10️⃣ FINALIZAR DEPLOY
+# ══════════════════════════════
+echo ""
+echo "${BLUE}┌─────────────────────────────────────────────┐${RESET}"
+echo "${BLUE}│         🔄 [10/10] FINALIZAR DEPLOY         │${RESET}"
+echo "${BLUE}└─────────────────────────────────────────────┘${RESET}"
+echo "${YELLOW}� Recarregando Apache...${RESET}"
 sudo systemctl reload apache2
 
-# ------------------------------
-# ✅ Finalização
+# ══════════════════════════════
+# 🎉 FINALIZAÇÃO
+# ══════════════════════════════
 echo ""
-echo "${BLUE}==========================================${RESET}"
-echo "${GREEN}✅ DEPLOY CONCLUÍDO!${RESET}"
-echo "Projeto: $PROJECT_NAME"
-echo "Acesso: ${USE_PORT:+http://localhost:$PORT}${DOMAIN:+https://$DOMAIN}"
-echo "${BLUE}==========================================${RESET}"
+echo "${GREEN}╔═══════════════════════════════════════════════╗${RESET}"
+echo "${GREEN}║              🎉 DEPLOY CONCLUÍDO! 🎉          ║${RESET}"
+echo "${GREEN}╠═══════════════════════════════════════════════╣${RESET}"
+echo "${GREEN}║ ${BLUE}📦 Projeto: ${YELLOW}$PROJECT_NAME${GREEN}                    ║${RESET}"
+echo "${GREEN}║ ${BLUE}🌐 Acesso: ${YELLOW}${USE_PORT:+http://localhost:$PORT}${DOMAIN:+https://$DOMAIN}${GREEN}              ║${RESET}"
+echo "${GREEN}║ ${BLUE}📅 Deploy: ${YELLOW}$(date '+%d/%m/%Y %H:%M:%S')${GREEN}         ║${RESET}"
+echo "${GREEN}╚═══════════════════════════════════════════════╝${RESET}"
+echo ""
+echo "${BLUE}🚀 Seu projeto está online e funcionando!${RESET}"
