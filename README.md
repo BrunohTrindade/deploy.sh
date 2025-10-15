@@ -1,9 +1,9 @@
-# 🚀 Deploy Automático Apache v3.4
+# 🚀 Deploy Automático Apache v3.5
 
 <div align="center">
 
 ![Deploy](https://img.shields.io/badge/Deploy-Automático-brightgreen?style=for-the-badge&logo=apache)
-![Version](https://img.shields.io/badge/Version-3.4-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-3.5-blue?style=for-the-badge)
 ![OS](https://img.shields.io/badge/OS-Ubuntu%20%7C%20Debian-orange?style=for-the-badge&logo=linux)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
 
@@ -192,7 +192,43 @@ curl -s https://raw.githubusercontent.com/BrunohTrindade/deploy.sh/refs/heads/ma
 
 ---
 
-## 🔄 **Sistema de Rollback Automático v3.4**
+## � **Fix .env Database Connection v3.5**
+
+### **🐛 Problema Resolvido:**
+
+O Laravel estava falhando nas migrations com erro:
+```
+Access denied for user ''@'localhost' (using password: YES)
+```
+
+### **🎯 Causa Identificada:**
+- ✅ Credenciais salvas corretamente no .env
+- ❌ `DB_CONNECTION` não estava sendo definido
+- ❌ Laravel usava configuração padrão incorreta
+
+### **🔧 Solução Implementada:**
+- **Verificação de escopo**: Garante que `DB_CONNECTION` está definido
+- **Fallback inteligente**: Define `mysql` se variável estiver vazia
+- **Debug visual**: Mostra valores sendo configurados
+- **Validação pós-config**: Confirma se .env foi atualizado
+
+### **📋 Output da Correção:**
+```bash
+📝 Atualizando .env com:
+   DB_CONNECTION=mysql
+   DB_HOST=localhost
+   DB_PORT=3306
+   DB_DATABASE=testando
+   DB_USERNAME=root
+   DB_PASSWORD=***
+
+🔍 Verificando configuração do .env...
+✅ DB_CONNECTION configurado corretamente
+```
+
+---
+
+## �🔄 **Sistema de Rollback Automático v3.4**
 
 ### **🛡️ Proteção Total contra Falhas:**
 

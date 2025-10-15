@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==========================================
-# 🚀 DEPLOY AUTOMÁTICO APACHE v3.4
+# 🚀 DEPLOY AUTOMÁTICO APACHE v3.5
 # Autor: Bruno Trindade + GPT-5  
 # Sistema: Ubuntu / Debian
 # ==========================================
@@ -80,7 +80,7 @@ rollback_deploy() {
 trap 'rollback_deploy' ERR
 
 echo "${BLUE}==========================================${RESET}"
-echo "${GREEN}      🚀 DEPLOY AUTOMÁTICO APACHE v3.4${RESET}"
+echo "${GREEN}      🚀 DEPLOY AUTOMÁTICO APACHE v3.5${RESET}"
 echo "${BLUE}==========================================${RESET}"
 echo ""
 
@@ -716,12 +716,35 @@ if [[ "$project_type" == "⚡ Laravel" ]] && [ -f .env ]; then
                     sudo chown "$SUPERVISOR_USER":www-data database/database.sqlite
                     sudo chmod 664 database/database.sqlite
                 else
+                    # Garantir que DB_CONNECTION está definido
+                    if [ -z "$DB_CONNECTION" ]; then
+                        echo "${WARN} DB_CONNECTION não definido, usando mysql como padrão${RESET}"
+                        DB_CONNECTION="mysql"
+                    fi
+                    
+                    echo "${BLUE}📝 Atualizando .env com:${RESET}"
+                    echo "${YELLOW}   DB_CONNECTION=$DB_CONNECTION${RESET}"
+                    echo "${YELLOW}   DB_HOST=$DB_HOST${RESET}"
+                    echo "${YELLOW}   DB_PORT=$DB_PORT${RESET}"
+                    echo "${YELLOW}   DB_DATABASE=$DB_DATABASE${RESET}"
+                    echo "${YELLOW}   DB_USERNAME=$DB_USERNAME${RESET}"
+                    echo "${YELLOW}   DB_PASSWORD=***${RESET}"
+                    
+                    # Atualizar arquivo .env
                     sed -i "s/DB_CONNECTION=.*/DB_CONNECTION=$DB_CONNECTION/" .env
                     sed -i "s/DB_HOST=.*/DB_HOST=$DB_HOST/" .env
                     sed -i "s/DB_PORT=.*/DB_PORT=$DB_PORT/" .env
                     sed -i "s/DB_DATABASE=.*/DB_DATABASE=$DB_DATABASE/" .env
                     sed -i "s/DB_USERNAME=.*/DB_USERNAME=$DB_USERNAME/" .env
                     sed -i "s/DB_PASSWORD=.*/DB_PASSWORD=$DB_PASSWORD/" .env
+                    
+                    # Verificar se as mudanças foram aplicadas
+                    echo "${BLUE}🔍 Verificando configuração do .env...${RESET}"
+                    if grep -q "DB_CONNECTION=$DB_CONNECTION" .env; then
+                        echo "${CHECK} DB_CONNECTION configurado corretamente"
+                    else
+                        echo "${ERROR} Falha ao configurar DB_CONNECTION"
+                    fi
                 fi
                 
                 echo "${CHECK} Arquivo .env configurado com sucesso!"
