@@ -1,9 +1,9 @@
-# 🚀 Deploy Automático Apache v3
+# 🚀 Deploy Automático Apache v3.2
 
 <div align="center">
 
 ![Deploy](https://img.shields.io/badge/Deploy-Automático-brightgreen?style=for-the-badge&logo=apache)
-![Version](https://img.shields.io/badge/Version-3.0-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-3.2-blue?style=for-the-badge)
 ![OS](https://img.shields.io/badge/OS-Ubuntu%20%7C%20Debian-orange?style=for-the-badge&logo=linux)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
 
@@ -27,7 +27,10 @@ Este script **revolucionário** automatiza completamente o deploy de projetos we
 | 🔒 **Segurança** | Configuração automática de permissões |
 | ⚙️ **Apache Auto** | VirtualHost criado automaticamente |
 | 📦 **Dependências** | Instalação automática (Composer, NPM, PIP) |
-| 🔐 **SSL/HTTPS** | Certificado SSL com Certbot (Let's Encrypt) |
+| 🗄️ **Banco Dados** | Configuração automática do .env (MySQL, PostgreSQL, SQLite) |
+| 🐬 **MySQL Auto** | Instalação automática do MySQL + Criação de bancos |
+| 🚀 **Migrations** | Execução opcional de migrations do Laravel |
+| �🔐 **SSL/HTTPS** | Certificado SSL com Certbot (Let's Encrypt) |
 | 📊 **Logs** | Sistema completo de logs de deploy |
 
 ---
@@ -46,35 +49,40 @@ curl -s https://raw.githubusercontent.com/BrunohTrindade/deploy.sh/refs/heads/ma
 
 ## 🎯 **Como Funciona**
 
-### **10 Passos Visuais e Interativos:**
+### **11 Passos Visuais e Interativos:**
 
 ```
 ┌─────────────────────────────────────────────┐
-│          📂 [1/10] FONTE DO PROJETO         │
+│          📂 [1/11] FONTE DO PROJETO         │
 └─────────────────────────────────────────────┘
 🔸 Diretório local ou Git Clone
 
 ┌─────────────────────────────────────────────┐
-│        👤 [2/10] USUÁRIO SUPERVISOR         │
+│        👤 [2/11] USUÁRIO SUPERVISOR         │
 └─────────────────────────────────────────────┘
 🔸 Detecção automática do usuário www-data
 
 ┌─────────────────────────────────────────────┐
-│        🔒 [3/10] AJUSTAR PERMISSÕES         │
+│        🔒 [3/11] AJUSTAR PERMISSÕES         │
 └─────────────────────────────────────────────┘
 🔸 Configuração de segurança automática
 
 ┌─────────────────────────────────────────────┐
-│         🚀 [4/10] TIPO DE PROJETO          │
+│         🚀 [4/11] TIPO DE PROJETO          │
 └─────────────────────────────────────────────┘
 🔸 Laravel, Vue, Node.js, Python ou HTML/PHP
 
 ┌─────────────────────────────────────────────┐
-│         🌐 [5/10] TIPO DE ACESSO           │
+│         🌐 [5/11] TIPO DE ACESSO           │
 └─────────────────────────────────────────────┘
 🔸 Domínio personalizado ou porta específica
 
-... e mais 5 passos automatizados!
+┌─────────────────────────────────────────────┐
+│      🗄️ [8.1/11] CONFIGURAR BANCO (.ENV)   │
+└─────────────────────────────────────────────┘
+🔸 MySQL, PostgreSQL ou SQLite + Migrations
+
+... e mais 6 passos automatizados!
 ```
 
 ---
@@ -83,13 +91,13 @@ curl -s https://raw.githubusercontent.com/BrunohTrindade/deploy.sh/refs/heads/ma
 
 <div align="center">
 
-| Framework | Emoji | Auto-Config | Dependências |
-|-----------|-------|-------------|--------------|
-| **Laravel** | ⚡ | ✅ Public folder | Composer + .env |
-| **Vue.js** | 🌟 | ✅ Dist folder | NPM + Build |
-| **Node.js** | 🟢 | ✅ Root folder | NPM install |
-| **Python** | 🐍 | ✅ Root folder | PIP requirements |
-| **HTML/PHP** | 📄 | ✅ Root folder | Nenhuma |
+| Framework | Emoji | Auto-Config | Dependências | Banco |
+|-----------|-------|-------------|--------------|--------|
+| **Laravel** | ⚡ | ✅ Public folder | Composer + .env + Key | � MySQL Auto-Install + Create DB |
+| **Vue.js** | 🌟 | ✅ Dist folder | NPM + Build | ❌ N/A |
+| **Node.js** | 🟢 | ✅ Root folder | NPM install | ❌ N/A |
+| **Python** | 🐍 | ✅ Root folder | PIP requirements | ❌ N/A |
+| **HTML/PHP** | 📄 | ✅ Root folder | Nenhuma | ❌ N/A |
 
 </div>
 
@@ -125,6 +133,58 @@ curl -s https://raw.githubusercontent.com/BrunohTrindade/deploy.sh/refs/heads/ma
 # http://localhost:8001
 ```
 
+### **🗄️ Configuração de Banco (Laravel)**
+```bash
+# 🔸 Deseja configurar a conexão com banco de dados?
+# ✅ Sim
+
+# 📊 Selecione o tipo de banco de dados:
+# 🐬 MySQL
+
+# ⚠️ MySQL não está instalado no sistema
+# 🔸 Deseja instalar o MySQL Server?
+# ✅ Sim
+# 💭 Digite a senha ROOT desejada para o MySQL: ********
+# � Instalando MySQL Server...
+# ✅ MySQL instalado e configurado com sucesso!
+
+# � Usando credenciais do MySQL recém-instalado
+# 💭 Digite o NOME do banco de dados: meu_laravel_app
+
+# 🔍 Testando conexão com o servidor de banco...
+# ✅ Conexão com servidor MySQL testada com sucesso!
+# 💾 Banco 'meu_laravel_app' não existe. Criando...
+# ✅ Banco de dados 'meu_laravel_app' criado com sucesso!
+
+# 📝 Configurando arquivo .env...
+# ✅ Arquivo .env configurado com sucesso!
+
+# 🚀 Deseja executar as migrations do Laravel?
+# ✅ Sim
+# 🚀 Executando migrations...
+# ✅ Migrations executadas com sucesso!
+```
+
+---
+
+## 🐬 **MySQL: Instalação e Configuração Automática**
+
+### **🎯 O que o script faz com MySQL:**
+
+- 🔍 **Detecta** se MySQL já está instalado
+- 📦 **Instala** MySQL Server se não estiver presente
+- 🔐 **Configura** senha root de forma segura
+- 🗄️ **Cria** o banco de dados automaticamente
+- ✅ **Testa** conexão antes de configurar
+- 📝 **Atualiza** arquivo `.env` do Laravel
+- 🚀 **Executa** migrations (opcional)
+
+### **🛡️ Configurações de Segurança Aplicadas:**
+- Remove usuários anônimos padrão
+- Remove acesso root remoto desnecessário
+- Remove banco de teste padrão
+- Aplica configurações recomendadas
+
 ---
 
 ## 🎊 **Resultado Final**
@@ -133,11 +193,12 @@ Após a execução, você verá:
 
 ```
 ╔═══════════════════════════════════════════════╗
-║              🎉 DEPLOY CONCLUÍDO! 🎉          ║
+║              🎉 DEPLOY CONCLUÍDO! 🎉         ║
 ╠═══════════════════════════════════════════════╣
-║ 📦 Projeto: meu-site                          ║
+║ 📦 Projeto: meu-laravel-app                   ║
 ║ 🌐 Acesso: https://meusite.com                ║
-║ 📅 Deploy: 14/10/2025 15:30:45               ║
+║ 🗄️ Banco: MySQL (meu_projeto)                 ║
+║ 📅 Deploy: 15/10/2025 15:30:45               ║
 ╚═══════════════════════════════════════════════╝
 
 🚀 Seu projeto está online e funcionando!
@@ -175,6 +236,10 @@ Perfeito para **debug** e **auditoria** de deploys!
 | ❌ Sem permissão | Execute com usuário que tenha acesso sudo |
 | ❌ Domínio não resolve | Verifique DNS antes de configurar SSL |
 | ❌ Dependências faltando | O script instala automaticamente quando possível |
+| ❌ Erro na conexão DB | Verifique se o banco existe e as credenciais estão corretas |
+| ❌ Migrations falham | Certifique-se que o banco foi criado antes de executar |
+| ❌ Falha instalação MySQL | Execute: `sudo apt update && sudo apt install mysql-server` |
+| ❌ Erro criar banco | Verifique permissões do usuário MySQL |
 
 ---
 

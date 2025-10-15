@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==========================================
-# 🚀 DEPLOY AUTOMÁTICO APACHE v3
+# 🚀 DEPLOY AUTOMÁTICO APACHE v3.2
 # Autor: Bruno Trindade + GPT-5
 # Sistema: Ubuntu / Debian
 # ==========================================
@@ -25,7 +25,7 @@ mkdir -p "$LOG_DIR"
 exec > >(tee -a "$LOG_DIR/deploy_$(date +%Y%m%d_%H%M%S).log") 2>&1
 
 echo "${BLUE}==========================================${RESET}"
-echo "${GREEN}        🚀 DEPLOY AUTOMÁTICO APACHE v3${RESET}"
+echo "${GREEN}      🚀 DEPLOY AUTOMÁTICO APACHE v3.2${RESET}"
 echo "${BLUE}==========================================${RESET}"
 echo ""
 
@@ -246,12 +246,246 @@ case $project_type in
 esac
 
 # ══════════════════════════════
+# 🗄️ 8.1️⃣ CONFIGURAR BANCO (.ENV)
+# ══════════════════════════════
+if [[ "$project_type" == "⚡ Laravel" ]] && [ -f .env ]; then
+    echo ""
+    echo "${BLUE}┌─────────────────────────────────────────────┐${RESET}"
+    echo "${BLUE}│      🗄️ [8.1/10] CONFIGURAR BANCO (.ENV)    │${RESET}"
+    echo "${BLUE}└─────────────────────────────────────────────┘${RESET}"
+    echo "${YELLOW}🔸 Deseja configurar a conexão com banco de dados?${RESET}"
+    echo ""
+    select configure_db in "✅ Sim" "❌ Não"; do
+        case $configure_db in
+            "✅ Sim")
+                echo "${GREEN}✅ Configurando conexão com banco...${RESET}"
+                echo ""
+                
+                # Tipo de banco
+                echo "${YELLOW}📊 Selecione o tipo de banco de dados:${RESET}"
+                select db_type in "🐬 MySQL" "🐘 PostgreSQL" "🪶 SQLite"; do
+                    case $db_type in
+                        "🐬 MySQL")
+                            DB_CONNECTION="mysql"
+                            DB_PORT="3306"
+                            
+                            # Verificar se MySQL está instalado
+                            if ! command -v mysql &>/dev/null; then
+                                echo "${WARN} MySQL não está instalado no sistema${RESET}"
+                                echo "${YELLOW}🔸 Deseja instalar o MySQL Server?${RESET}"
+                                select install_mysql in "✅ Sim" "❌ Não"; do
+                                    case $install_mysql in
+                                        "✅ Sim")
+                                            echo "${BLUE}📦 Instalando MySQL Server...${RESET}"
+                                            
+                                            # Definir senha root do MySQL
+                                            read -s -p "${BLUE}💭 Digite a senha ROOT desejada para o MySQL: ${RESET}" MYSQL_ROOT_PASSWORD
+                                            echo ""
+                                            while [[ -z "$MYSQL_ROOT_PASSWORD" ]]; do
+                                                echo "${RED}❌ Senha não pode estar vazia!${RESET}"
+                                                read -s -p "${BLUE}💭 Digite a senha ROOT desejada para o MySQL: ${RESET}" MYSQL_ROOT_PASSWORD
+                                                echo ""
+                                            done
+                                            
+                                            # Configuração não-interativa do MySQL
+                                            sudo debconf-set-selections <<< "mysql-server mysql-server/root_password password $MYSQL_ROOT_PASSWORD"
+                                            sudo debconf-set-selections <<< "mysql-server mysql-server/root_password_again password $MYSQL_ROOT_PASSWORD"
+                                            
+                                            # Atualizar repositórios e instalar MySQL
+                                            sudo apt update
+                                            sudo apt install -y mysql-server mysql-client
+                                            
+                                            # Iniciar e habilitar MySQL
+                                            sudo systemctl start mysql
+                                            sudo systemctl enable mysql
+                                            
+                                            # Configuração básica de segurança
+                                            mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "
+                                                DELETE FROM mysql.user WHERE User='';
+                                                DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
+                                                DROP DATABASE IF EXISTS test;
+                                                DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
+                                                FLUSH PRIVILEGES;
+                                            " 2>/dev/null
+                                            
+                                            echo "${CHECK} MySQL instalado e configurado com sucesso!"
+                                            
+                                            # Definir credenciais padrão
+                                            DB_HOST="localhost"
+                                            DB_USERNAME="root"
+                                            DB_PASSWORD="$MYSQL_ROOT_PASSWORD"
+                                            break
+                                            ;;
+                                        "❌ Não")
+                                            echo "${RED}❌ Instalação do MySQL cancelada${RESET}"
+                                            echo "${YELLOW}💡 Você pode instalar manualmente: sudo apt install mysql-server${RESET}"
+                                            break
+                                            ;;
+                                    esac
+                                done < /dev/tty
+                            else
+                                echo "${CHECK} MySQL já está instalado no sistema"
+                            fi
+                            break
+                            ;;
+                        "🐘 PostgreSQL")
+                            DB_CONNECTION="pgsql"
+                            DB_PORT="5432"
+                            break
+                            ;;
+                        "🪶 SQLite")
+                            DB_CONNECTION="sqlite"
+                            echo "${GREEN}🪶 SQLite selecionado - não necessita configuração adicional${RESET}"
+                            break
+                            ;;
+                        *)
+                            echo "${RED}Escolha inválida.${RESET}"
+                            ;;
+                    esac
+                done < /dev/tty
+                
+                if [[ "$DB_CONNECTION" != "sqlite" ]]; then
+                    echo ""
+                    
+                    # Se MySQL foi instalado, usar credenciais já definidas
+                    if [[ "$DB_CONNECTION" == "mysql" ]] && [[ -n "$MYSQL_ROOT_PASSWORD" ]]; then
+                        echo "${GREEN}🐬 Usando credenciais do MySQL recém-instalado${RESET}"
+                        # Credenciais já definidas durante a instalação
+                    else
+                        # Coletar credenciais manualmente
+                        read -p "${BLUE}💭 Digite o HOST do banco (padrão: localhost): ${RESET}" DB_HOST
+                        DB_HOST=${DB_HOST:-localhost}
+                        
+                        read -p "${BLUE}💭 Digite a PORTA do banco (padrão: $DB_PORT): ${RESET}" CUSTOM_DB_PORT
+                        DB_PORT=${CUSTOM_DB_PORT:-$DB_PORT}
+                        
+                        read -p "${BLUE}💭 Digite o USUÁRIO do banco: ${RESET}" DB_USERNAME
+                        while [[ -z "$DB_USERNAME" ]]; do
+                            echo "${RED}❌ Usuário do banco é obrigatório!${RESET}"
+                            read -p "${BLUE}💭 Digite o USUÁRIO do banco: ${RESET}" DB_USERNAME
+                        done
+                        
+                        read -s -p "${BLUE}💭 Digite a SENHA do banco: ${RESET}" DB_PASSWORD
+                        echo ""
+                        while [[ -z "$DB_PASSWORD" ]]; do
+                            echo "${RED}❌ Senha do banco é obrigatória!${RESET}"
+                            read -s -p "${BLUE}💭 Digite a SENHA do banco: ${RESET}" DB_PASSWORD
+                            echo ""
+                        done
+                    fi
+                    
+                    # Coletar nome do banco
+                    read -p "${BLUE}💭 Digite o NOME do banco de dados: ${RESET}" DB_DATABASE
+                    while [[ -z "$DB_DATABASE" ]]; do
+                        echo "${RED}❌ Nome do banco é obrigatório!${RESET}"
+                        read -p "${BLUE}💭 Digite o NOME do banco de dados: ${RESET}" DB_DATABASE
+                    done
+                    
+                    # Testar conexão e criar banco se necessário
+                    echo "${YELLOW}🔍 Testando conexão com o servidor de banco...${RESET}"
+                    if [[ "$DB_CONNECTION" == "mysql" ]]; then
+                        if command -v mysql &>/dev/null; then
+                            # Testar conexão com o servidor MySQL
+                            if mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -e "SELECT 1;" 2>/dev/null; then
+                                echo "${CHECK} Conexão com servidor MySQL testada com sucesso!"
+                                
+                                # Verificar se o banco existe
+                                if mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -e "USE $DB_DATABASE;" 2>/dev/null; then
+                                    echo "${CHECK} Banco de dados '$DB_DATABASE' já existe!"
+                                else
+                                    echo "${YELLOW}💾 Banco '$DB_DATABASE' não existe. Criando...${RESET}"
+                                    if mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -e "CREATE DATABASE $DB_DATABASE CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null; then
+                                        echo "${CHECK} Banco de dados '$DB_DATABASE' criado com sucesso!"
+                                    else
+                                        echo "${ERROR} Erro ao criar banco de dados '$DB_DATABASE'"
+                                        echo "${YELLOW}💡 Você pode criá-lo manualmente: CREATE DATABASE $DB_DATABASE;${RESET}"
+                                    fi
+                                fi
+                            else
+                                echo "${ERROR} Falha na conexão com MySQL - verifique as credenciais"
+                                echo "${YELLOW}💡 Certifique-se de que o usuário '$DB_USERNAME' tem permissões adequadas${RESET}"
+                            fi
+                        else
+                            echo "${WARN} Cliente MySQL não encontrado para teste"
+                        fi
+                    elif [[ "$DB_CONNECTION" == "pgsql" ]]; then
+                        if command -v psql &>/dev/null; then
+                            if PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -d "$DB_DATABASE" -c "SELECT 1;" 2>/dev/null; then
+                                echo "${CHECK} Conexão com PostgreSQL testada com sucesso!"
+                            else
+                                echo "${WARN} Não foi possível testar a conexão PostgreSQL (banco pode não existir ainda)"
+                            fi
+                        else
+                            echo "${WARN} Cliente PostgreSQL não encontrado para teste"
+                        fi
+                    fi
+                fi
+                
+                # Configurar .env
+                echo "${YELLOW}📝 Configurando arquivo .env...${RESET}"
+                
+                if [[ "$DB_CONNECTION" == "sqlite" ]]; then
+                    sed -i "s/DB_CONNECTION=.*/DB_CONNECTION=sqlite/" .env
+                    sed -i "s/DB_HOST=.*/# DB_HOST=/" .env
+                    sed -i "s/DB_PORT=.*/# DB_PORT=/" .env
+                    sed -i "s/DB_DATABASE=.*/DB_DATABASE=database\/database.sqlite/" .env
+                    sed -i "s/DB_USERNAME=.*/# DB_USERNAME=/" .env
+                    sed -i "s/DB_PASSWORD=.*/# DB_PASSWORD=/" .env
+                    
+                    # Criar arquivo SQLite se não existir
+                    mkdir -p database
+                    touch database/database.sqlite
+                    sudo chown "$SUPERVISOR_USER":www-data database/database.sqlite
+                    sudo chmod 664 database/database.sqlite
+                else
+                    sed -i "s/DB_CONNECTION=.*/DB_CONNECTION=$DB_CONNECTION/" .env
+                    sed -i "s/DB_HOST=.*/DB_HOST=$DB_HOST/" .env
+                    sed -i "s/DB_PORT=.*/DB_PORT=$DB_PORT/" .env
+                    sed -i "s/DB_DATABASE=.*/DB_DATABASE=$DB_DATABASE/" .env
+                    sed -i "s/DB_USERNAME=.*/DB_USERNAME=$DB_USERNAME/" .env
+                    sed -i "s/DB_PASSWORD=.*/DB_PASSWORD=$DB_PASSWORD/" .env
+                fi
+                
+                echo "${CHECK} Arquivo .env configurado com sucesso!"
+                
+                # Perguntar sobre migrations
+                echo ""
+                echo "${YELLOW}🚀 Deseja executar as migrations do Laravel?${RESET}"
+                select run_migrations in "✅ Sim" "❌ Não"; do
+                    case $run_migrations in
+                        "✅ Sim")
+                            echo "${BLUE}🚀 Executando migrations...${RESET}"
+                            if php artisan migrate --force 2>/dev/null; then
+                                echo "${CHECK} Migrations executadas com sucesso!"
+                            else
+                                echo "${WARN} Erro ao executar migrations (verifique se o banco existe)"
+                            fi
+                            break
+                            ;;
+                        "❌ Não")
+                            echo "${YELLOW}❌ Migrations não executadas${RESET}"
+                            break
+                            ;;
+                    esac
+                done < /dev/tty
+                
+                break
+                ;;
+            "❌ Não")
+                echo "${YELLOW}❌ Configuração de banco ignorada${RESET}"
+                break
+                ;;
+        esac
+    done < /dev/tty
+fi
+
+# ══════════════════════════════
 # 🔐 9️⃣ CONFIGURAR SSL
 # ══════════════════════════════
 if [ "$USE_PORT" = false ]; then
     echo ""
     echo "${BLUE}┌─────────────────────────────────────────────┐${RESET}"
-    echo "${BLUE}│         🔐 [9/10] CONFIGURAR SSL            │${RESET}"
+    echo "${BLUE}│         🔐 [9/11] CONFIGURAR SSL            │${RESET}"
     echo "${BLUE}└─────────────────────────────────────────────┘${RESET}"
     echo "${YELLOW}� Deseja configurar SSL/HTTPS? (Recomendado)${RESET}"
     echo ""
@@ -272,11 +506,11 @@ if [ "$USE_PORT" = false ]; then
 fi
 
 # ══════════════════════════════
-# � 10️⃣ FINALIZAR DEPLOY
+# 🔄 🔟 FINALIZAR DEPLOY
 # ══════════════════════════════
 echo ""
 echo "${BLUE}┌─────────────────────────────────────────────┐${RESET}"
-echo "${BLUE}│         🔄 [10/10] FINALIZAR DEPLOY         │${RESET}"
+echo "${BLUE}│         🔄 [10/11] FINALIZAR DEPLOY         │${RESET}"
 echo "${BLUE}└─────────────────────────────────────────────┘${RESET}"
 echo "${YELLOW}� Recarregando Apache...${RESET}"
 sudo systemctl reload apache2
