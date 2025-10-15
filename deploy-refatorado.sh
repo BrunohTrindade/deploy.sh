@@ -13,8 +13,13 @@ set -euo pipefail  # Fail fast and fail hard
 # ══════════════════════════════════════════════════════════════════════════════
 
 # Carregar configurações do arquivo externo se existir
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)" 2>/dev/null || SCRIPT_DIR="/tmp"
 CONFIG_FILE="$SCRIPT_DIR/deploy.config"
+
+# Também verificar em locais padrão
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    CONFIG_FILE="/etc/deploy-apache/deploy.config"
+fi
 
 if [[ -f "$CONFIG_FILE" ]]; then
     source "$CONFIG_FILE"
@@ -60,6 +65,7 @@ declare -g DOC_ROOT=""
 declare -g USE_PORT=false
 declare -g PORT=""
 declare -g DOMAIN=""
+declare -g LOG_FILE=""
 
 # Arrays para controle de rollback
 declare -ag ROLLBACK_ACTIONS=()
@@ -73,7 +79,11 @@ declare -ag CREATED_CONFIGS=()
 # Inicializar sistema de logs
 setup_logging() {
     mkdir -p "$LOG_DIR"
-    exec > >(tee -a "$LOG_DIR/deploy_$(date +%Y%m%d_%H%M%S).log") 2>&1
+    LOG_FILE="$LOG_DIR/deploy_$(date +%Y%m%d_%H%M%S).log"
+    exec > >(tee -a "$LOG_FILE") 2>&1
+    
+    echo "📝 Log sendo salvo em: $LOG_FILE"
+    echo "═══════════════════════════════════════════════════════════════════════════════"
 }
 
 # Exibir mensagens formatadas
@@ -117,10 +127,21 @@ find_free_port() {
     return 1
 }
 
+# Mostrar informações de logs e debug
+show_log_info() {
+    echo ""
+    log_info "📋 Localização dos logs:"
+    log_info "   • Log do deploy: ${LOG_FILE:-$LOG_DIR/deploy_YYYYMMDD_HHMMSS.log}"
+    log_info "   • Logs do Apache: /var/log/apache2/"
+    log_info "   • Para debug: tail -f \$LOG_FILE"
+    echo ""
+}
+
 # Verificar se usuário tem privilégios sudo
 check_sudo() {
     if ! sudo -n true 2>/dev/null; then
         log_error "Este script requer privilégios sudo"
+        [[ -n "$LOG_FILE" ]] && log_error "Veja o log em: $LOG_FILE"
         exit 1
     fi
 }
@@ -169,6 +190,10 @@ rollback_deploy() {
     sudo systemctl reload apache2 2>/dev/null || true
     
     log_error "Rollback concluído. Deploy foi revertido."
+    echo ""
+    log_info "📋 Para debug, consulte os logs:"
+    [[ -n "$LOG_FILE" ]] && log_info "   • Log do deploy: $LOG_FILE"
+    log_info "   • Log do Apache: /var/log/apache2/error.log"
     exit 1
 }
 
@@ -272,7 +297,7 @@ get_project_type() {
     local detected_type=$(detect_project_type)
     if [[ -n "$detected_type" ]]; then
         log_info "Tipo de projeto detectado automaticamente: $detected_type"
-        read -p "${YELLOW}Usar detecção automática? (s/N): ${RESET}" use_detected
+        read -p "${YELLOW}Usar detecção automática? (s/N): ${RESET}" use_detected < /dev/tty
         if [[ "$use_detected" =~ ^[Ss]$ ]]; then
             PROJECT_TYPE="$detected_type"
             return 0
@@ -435,7 +460,7 @@ verify_project_structure() {
     
     if [[ "$found" == false ]]; then
         log_warning "Nenhum arquivo inicial encontrado em $DOC_ROOT"
-        read -p "${YELLOW}❓ Deseja continuar mesmo assim? (s/N): ${RESET}" CONTINUE
+        read -p "${YELLOW}❓ Deseja continuar mesmo assim? (s/N): ${RESET}" CONTINUE < /dev/tty
         if [[ ! "$CONTINUE" =~ ^[Ss]$ ]]; then
             log_error "Deploy cancelado pelo usuário"
             exit 1
@@ -835,9 +860,15 @@ show_success_message() {
     echo "${GREEN}║ ${BLUE}📦 Projeto: ${YELLOW}$PROJECT_NAME${GREEN}                    ║${RESET}"
     echo "${GREEN}║ ${BLUE}🌐 Acesso: ${YELLOW}$access_url${GREEN}              ║${RESET}"
     echo "${GREEN}║ ${BLUE}📅 Deploy: ${YELLOW}$(date '+%d/%m/%Y %H:%M:%S')${GREEN}         ║${RESET}"
+    echo "${GREEN}║ ${BLUE}📝 Log: ${YELLOW}$LOG_FILE${GREEN}     ║${RESET}"
     echo "${GREEN}╚═══════════════════════════════════════════════╝${RESET}"
     echo ""
     log_success "Seu projeto está online e funcionando!"
+    echo ""
+    log_info "📋 Informações importantes:"
+    log_info "   • Log completo: $LOG_FILE"
+    log_info "   • Log do Apache: /var/log/apache2/${PROJECT_NAME}_error.log"
+    log_info "   • Para ver logs em tempo real: tail -f $LOG_FILE"
 }
 
 show_header() {
