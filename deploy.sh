@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==========================================
-# 🚀 DEPLOY AUTOMÁTICO APACHE v3.3
+# 🚀 DEPLOY AUTOMÁTICO APACHE v3.4
 # Autor: Bruno Trindade + GPT-5  
 # Sistema: Ubuntu / Debian
 # ==========================================
@@ -21,11 +21,66 @@ PORTS_FILE="/etc/apache2/ports.conf"
 LOG_DIR="$HOME/deploy_logs"
 mkdir -p "$LOG_DIR"
 
+# Variáveis de controle de rollback
+ROLLBACK_ACTIONS=()
+TEMP_FILES=()
+CREATED_CONFIGS=()
+
 # Log completo
 exec > >(tee -a "$LOG_DIR/deploy_$(date +%Y%m%d_%H%M%S).log") 2>&1
 
+# Função de rollback
+rollback_deploy() {
+    echo ""
+    echo "${RED}╔═══════════════════════════════════════════════╗${RESET}"
+    echo "${RED}║              ⚠️ INICIANDO ROLLBACK ⚠️           ║${RESET}"
+    echo "${RED}╚═══════════════════════════════════════════════╝${RESET}"
+    
+    # Desabilitar site Apache se foi criado
+    for config in "${CREATED_CONFIGS[@]}"; do
+        echo "${YELLOW}🔄 Desabilitando site: $config${RESET}"
+        sudo a2dissite "$config" 2>/dev/null || true
+    done
+    
+    # Remover arquivos de configuração criados
+    for config in "${CREATED_CONFIGS[@]}"; do
+        config_path="/etc/apache2/sites-available/$config"
+        if [ -f "$config_path" ]; then
+            echo "${YELLOW}🗑️ Removendo configuração: $config_path${RESET}"
+            sudo rm -f "$config_path"
+        fi
+    done
+    
+    # Remover arquivos temporários
+    for temp_file in "${TEMP_FILES[@]}"; do
+        if [ -f "$temp_file" ]; then
+            echo "${YELLOW}🗑️ Removendo arquivo temporário: $temp_file${RESET}"
+            rm -f "$temp_file"
+        fi
+    done
+    
+    # Remover Listen das portas adicionadas
+    for action in "${ROLLBACK_ACTIONS[@]}"; do
+        if [[ "$action" == "port:"* ]]; then
+            port=$(echo "$action" | cut -d: -f2)
+            echo "${YELLOW}🔄 Removendo Listen $port do ports.conf${RESET}"
+            sudo sed -i "/^Listen $port$/d" "$PORTS_FILE" 2>/dev/null || true
+        fi
+    done
+    
+    # Recarregar Apache
+    echo "${YELLOW}🔄 Recarregando Apache...${RESET}"
+    sudo systemctl reload apache2 2>/dev/null || true
+    
+    echo "${RED}❌ Rollback concluído. Deploy foi revertido.${RESET}"
+    exit 1
+}
+
+# Trap para capturar erros e executar rollback
+trap 'rollback_deploy' ERR
+
 echo "${BLUE}==========================================${RESET}"
-echo "${GREEN}      🚀 DEPLOY AUTOMÁTICO APACHE v3.3${RESET}"
+echo "${GREEN}      🚀 DEPLOY AUTOMÁTICO APACHE v3.4${RESET}"
 echo "${BLUE}==========================================${RESET}"
 echo ""
 
@@ -214,6 +269,12 @@ sudo bash -c "cat > $CONF_PATH" <<EOF
 </VirtualHost>
 EOF
 
+# Adicionar ao controle de rollback
+CREATED_CONFIGS+=("${PROJECT_NAME}.conf")
+if [ "$USE_PORT" = true ]; then
+    ROLLBACK_ACTIONS+=("port:$PORT")
+fi
+
 sudo a2enmod rewrite proxy proxy_http headers ssl > /dev/null 2>&1
 sudo a2ensite "${PROJECT_NAME}.conf" > /dev/null 2>&1
 
@@ -231,16 +292,46 @@ case $project_type in
     "⚡ Laravel")
         echo "${BLUE}⚡ Processando projeto Laravel...${RESET}"
         
-        # Verificar e instalar Composer se necessário
+        # Verificar versão do PHP primeiro
+        if command -v php &>/dev/null; then
+            PHP_VERSION=$(php -r "echo PHP_VERSION;")
+            echo "${CHECK} PHP $PHP_VERSION detectado"
+        else
+            echo "${ERROR} PHP não encontrado no sistema!"
+            echo "${YELLOW}💡 Instale PHP manualmente: sudo apt install php php-cli php-mysql${RESET}"
+            exit 1
+        fi
+        
+        # Verificar requisitos do projeto Laravel
+        if [ -f "composer.json" ]; then
+            echo "${BLUE}🔍 Verificando requisitos PHP do projeto...${RESET}"
+            
+            # Extrair versão PHP requerida do composer.json
+            REQUIRED_PHP=$(grep -o '"php":\s*"[^"]*"' composer.json 2>/dev/null | cut -d'"' -f4 | head -1)
+            
+            if [ -n "$REQUIRED_PHP" ]; then
+                echo "${YELLOW}📋 Projeto requer PHP: $REQUIRED_PHP${RESET}"
+                echo "${YELLOW}� Sistema possui PHP: $PHP_VERSION${RESET}"
+                
+                # Verificar compatibilidade usando composer (se disponível)
+                if command -v composer &>/dev/null; then
+                    if composer check-platform-reqs --no-dev 2>/dev/null | grep -q "does not satisfy"; then
+                        echo "${ERROR} Incompatibilidade de versão PHP detectada!"
+                        echo "${YELLOW}💡 O projeto requer $REQUIRED_PHP mas o sistema tem PHP $PHP_VERSION${RESET}"
+                        echo "${YELLOW}� Instale a versão correta do PHP antes de continuar${RESET}"
+                        exit 1
+                    else
+                        echo "${CHECK} Versão PHP compatível com o projeto!"
+                    fi
+                fi
+            else
+                echo "${YELLOW}💡 Não foi possível detectar requisitos PHP no composer.json${RESET}"
+            fi
+        fi
+        
+        # Verificar e instalar Composer se necessário  
         if ! command -v composer &>/dev/null; then
             echo "${WARN} Composer não encontrado. Instalando...${RESET}"
-            
-            # Verificar se PHP está instalado
-            if ! command -v php &>/dev/null; then
-                echo "${BLUE}📦 Instalando PHP e extensões necessárias...${RESET}"
-                sudo apt update
-                sudo apt install -y php php-cli php-fpm php-mysql php-xml php-mbstring php-curl php-zip php-bcmath php-tokenizer php-json php-gd unzip
-            fi
             
             # Baixar e instalar Composer
             echo "${BLUE}📦 Baixando e instalando Composer...${RESET}"
@@ -701,6 +792,9 @@ echo "${BLUE}│         🔄 [10/11] FINALIZAR DEPLOY         │${RESET}"
 echo "${BLUE}└─────────────────────────────────────────────┘${RESET}"
 echo "${YELLOW}� Recarregando Apache...${RESET}"
 sudo systemctl reload apache2
+
+# Desabilitar trap de erro - deploy concluído com sucesso
+trap - ERR
 
 # ══════════════════════════════
 # 🎉 FINALIZAÇÃO

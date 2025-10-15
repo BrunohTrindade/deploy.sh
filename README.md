@@ -1,9 +1,9 @@
-# 🚀 Deploy Automático Apache v3.3
+# 🚀 Deploy Automático Apache v3.4
 
 <div align="center">
 
 ![Deploy](https://img.shields.io/badge/Deploy-Automático-brightgreen?style=for-the-badge&logo=apache)
-![Version](https://img.shields.io/badge/Version-3.3-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-3.4-blue?style=for-the-badge)
 ![OS](https://img.shields.io/badge/OS-Ubuntu%20%7C%20Debian-orange?style=for-the-badge&logo=linux)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
 
@@ -27,7 +27,9 @@ Este script **revolucionário** automatiza completamente o deploy de projetos we
 | 🔒 **Segurança** | Configuração automática de permissões |
 | ⚙️ **Apache Auto** | VirtualHost criado automaticamente |
 | 📦 **Dependências** | Instalação automática (Composer, NPM, PIP) |
-| � **Fix Automático** | Corrige problemas de permissão, Git e compatibilidade |
+| 🔧 **Fix Automático** | Corrige problemas de permissão, Git e compatibilidade |
+| 🐘 **PHP Smart** | Verificação de compatibilidade de versão PHP |
+| 🔄 **Rollback Auto** | Reverte tudo automaticamente se algo falhar |
 | �🗄️ **Banco Dados** | Configuração automática do .env (MySQL, PostgreSQL, SQLite) |
 | 🐬 **MySQL Auto** | Instalação automática do MySQL + Criação de bancos |
 | 🚀 **Migrations** | Execução opcional de migrations do Laravel |
@@ -168,13 +170,15 @@ curl -s https://raw.githubusercontent.com/BrunohTrindade/deploy.sh/refs/heads/ma
 
 ---
 
-## � **Correções Automáticas v3.3**
+## 🔧 **Correções Automáticas v3.4**
 
 ### **🛠️ Problemas Corrigidos Automaticamente:**
 
 - ❌➡️✅ **Composer como root**: Executa como usuário correto
 - ❌➡️✅ **Git ownership**: Adiciona diretório ao safe.directory
 - ❌➡️✅ **PHP incompatível**: Remove composer.lock e atualiza dependências
+- ❌➡️✅ **Versão PHP**: Verifica compatibilidade e para se incompatível
+- ❌➡️✅ **Rollback**: Reverte todas as mudanças se algo falhar
 - ❌➡️✅ **Permissões**: Ajusta ownership antes da instalação
 - ❌➡️✅ **Cache produção**: Otimiza automaticamente para performance
 - ❌➡️✅ **Segurança .env**: Define permissões 640 no arquivo
@@ -185,6 +189,77 @@ curl -s https://raw.githubusercontent.com/BrunohTrindade/deploy.sh/refs/heads/ma
 3. **Executa** composer update quando necessário  
 4. **Aplica** permissões corretas
 5. **Otimiza** cache para produção
+
+---
+
+## 🔄 **Sistema de Rollback Automático v3.4**
+
+### **🛡️ Proteção Total contra Falhas:**
+
+- 🚨 **Detecta** qualquer erro durante o deploy
+- 🔄 **Reverte** todas as mudanças automaticamente
+- 🗑️ **Remove** configurações criadas
+- ⚡ **Restaura** estado original do sistema
+
+### **🎯 O que é Revertido:**
+
+- **Configurações Apache**: Remove VirtualHost criado
+- **Sites habilitados**: Desabilita site do Apache
+- **Portas Listen**: Remove portas adicionadas ao ports.conf
+- **Arquivos temporários**: Limpa arquivos criados
+- **Estado Apache**: Recarrega configuração original
+
+### **🔄 Fluxo de Rollback:**
+
+```bash
+# ❌ Erro detectado durante instalação...
+
+# ╔═══════════════════════════════════════════════╗
+# ║              ⚠️ INICIANDO ROLLBACK ⚠️           ║
+# ╚═══════════════════════════════════════════════╝
+
+# 🔄 Desabilitando site: meu-projeto.conf
+# 🗑️ Removendo configuração Apache
+# 🔄 Removendo porta do ports.conf
+# 🔄 Recarregando Apache...
+# ❌ Rollback concluído. Deploy foi revertido.
+```
+
+## 🐘 **PHP: Verificação de Compatibilidade v3.4**
+
+### **🎯 Verificação Automática de Compatibilidade:**
+
+- 🔍 **Detecta** versão PHP atual do sistema
+- 📋 **Lê** requisitos PHP do `composer.json`
+- ⚖️ **Compara** versões automaticamente
+- 🚨 **Alerta** sobre incompatibilidades
+- 📦 **Oferece** instalação da versão correta
+
+### **🔄 Fluxo de Verificação:**
+
+```bash
+# 🔍 Verificando requisitos PHP do projeto...
+# 📋 Projeto requer PHP: ^8.0
+# 📋 Sistema possui PHP: 7.4.33
+
+# 🔸 Deseja tentar instalar PHP 8.0?
+# ✅ Sim
+
+# 📦 Tentando instalar PHP 8.0...
+# 📦 Adicionando repositório ondrej/php...
+# 📦 Instalando PHP 8.0 e extensões...
+# ✅ PHP atualizado para versão: 8.0.30
+
+# ✅ Versão PHP compatível com o projeto!
+```
+
+### **🛠️ Recursos Avançados:**
+
+- **Repositório ondrej/php**: Acesso a todas as versões PHP
+- **Extensões automáticas**: Instala todas as extensões necessárias
+- **Update-alternatives**: Define nova versão como padrão
+- **Verificação pós-instalação**: Confirma compatibilidade
+- **Opção de override**: Permite continuar mesmo com incompatibilidade
 
 ---
 
@@ -263,7 +338,8 @@ Perfeito para **debug** e **auditoria** de deploys!
 | ❌ Erro criar banco | Verifique permissões do usuário MySQL |
 | ❌ Composer como root | **CORRIGIDO v3.3**: Executa como usuário correto automaticamente |
 | ❌ Git ownership error | **CORRIGIDO v3.3**: Adiciona ao safe.directory automaticamente |
-| ❌ PHP version mismatch | **CORRIGIDO v3.3**: Remove composer.lock e atualiza automaticamente |
+| ❌ PHP version mismatch | **CORRIGIDO v3.4**: Para deploy e orienta instalação manual |
+| ❌ Deploy failure | **NOVO v3.4**: Sistema de rollback automático reverte tudo |
 
 ---
 
