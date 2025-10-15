@@ -37,25 +37,53 @@ echo "${BLUE}┌─────────────────────�
 echo "${BLUE}│          📂 [1/8] FONTE DO PROJETO          │${RESET}"
 echo "${BLUE}└─────────────────────────────────────────────┘${RESET}"
 echo "${YELLOW}Escolha de onde vem seu projeto:${RESET}"
+echo "1) 📁 Diretório local"
+echo "2) 🌐 Git Clone"
 echo ""
-select source_type in "📁 Diretório local" "🌐 Git Clone"; do
-    case $source_type in
-        "📁 Diretório local")
+
+while true; do
+    read -p "${BLUE}Escolha (1 ou 2): ${RESET}" choice
+    case $choice in
+        1)
             echo "${GREEN}📁 Você escolheu: Diretório local${RESET}"
             read -p "${BLUE}💭 Digite o caminho completo do projeto: ${RESET}" PROJECT_PATH
+            
+            if [[ -z "$PROJECT_PATH" ]]; then
+                echo "${ERROR} Caminho não pode estar vazio!"
+                continue
+            fi
+            
+            if [[ ! -d "$PROJECT_PATH" ]]; then
+                echo "${ERROR} Diretório não encontrado: $PROJECT_PATH"
+                continue
+            fi
+            
             PROJECT_NAME=$(basename "$PROJECT_PATH")
             break
             ;;
-        "🌐 Git Clone")
+        2)
             echo "${GREEN}🌐 Você escolheu: Git Clone${RESET}"
             read -p "${BLUE}💭 Digite o link do repositório Git: ${RESET}" GIT_LINK
+            
+            if [[ -z "$GIT_LINK" ]]; then
+                echo "${ERROR} Link não pode estar vazio!"
+                continue
+            fi
+            
             PROJECT_NAME=$(basename "$GIT_LINK" .git)
             PROJECT_PATH="$APACHE_DIR/$PROJECT_NAME"
-            git clone "$GIT_LINK" "$PROJECT_PATH" || { echo "${ERROR} Falha ao clonar repositório"; exit 1; }
-            break
+            
+            echo "${BLUE}🔄 Clonando repositório...${RESET}"
+            if git clone "$GIT_LINK" "$PROJECT_PATH"; then
+                echo "${CHECK} Repositório clonado com sucesso!"
+                break
+            else
+                echo "${ERROR} Falha ao clonar repositório"
+                continue
+            fi
             ;;
         *)
-            echo "${RED}Escolha inválida.${RESET}"
+            echo "${RED}Escolha inválida. Digite 1 ou 2.${RESET}"
             ;;
     esac
 done
@@ -119,36 +147,57 @@ echo "${BLUE}┌─────────────────────�
 echo "${BLUE}│         🌐 [4/8] CONFIGURAR ACESSO         │${RESET}"
 echo "${BLUE}└─────────────────────────────────────────────┘${RESET}"
 echo "${YELLOW}Como você quer acessar seu projeto?${RESET}"
+echo "1) 🌍 Domínio"  
+echo "2) 🔌 Porta"
 echo ""
-select access_type in "🌍 Domínio" "🔌 Porta"; do
-    case $access_type in
-        "🌍 Domínio")
+
+while true; do
+    read -p "${BLUE}Escolha (1 ou 2): ${RESET}" choice
+    case $choice in
+        1)
             echo "${GREEN}🌍 Você escolheu: Acesso por domínio${RESET}"
             read -p "${BLUE}💭 Digite o domínio (ex: exemplo.com): ${RESET}" DOMAIN
+            
+            if [[ -z "$DOMAIN" ]]; then
+                echo "${ERROR} Domínio não pode estar vazio!"
+                continue
+            fi
+            
             USE_PORT=false
             break
             ;;
-        "🔌 Porta")
+        2)
             echo "${GREEN}🔌 Você escolheu: Acesso por porta${RESET}"
             USE_PORT=true
             echo "${BLUE}🔍 Procurando porta livre...${RESET}"
+            
+            SUGGESTED_PORT=""
             for i in {8000..9000}; do
                 if ! ss -tuln | grep -q ":$i "; then
                     SUGGESTED_PORT=$i
                     break
                 fi
             done
+            
+            if [[ -z "$SUGGESTED_PORT" ]]; then
+                echo "${ERROR} Nenhuma porta livre encontrada entre 8000-9000"
+                exit 1
+            fi
+            
             echo "${GREEN}💡 Porta sugerida livre: ${YELLOW}$SUGGESTED_PORT${RESET}"
             read -p "${BLUE}💭 Digite a porta desejada (padrão $SUGGESTED_PORT): ${RESET}" CUSTOM_PORT
             PORT=${CUSTOM_PORT:-$SUGGESTED_PORT}
+            
             if ss -tuln | grep -q ":$PORT "; then
-                echo "${ERROR} Porta $PORT já está em uso! Abortando."
-                exit 1
+                echo "${ERROR} Porta $PORT já está em uso!"
+                continue
             fi
+            
+            echo "${CHECK} Porta $PORT será utilizada"
             break
             ;;
         *)
-            echo "${RED}Escolha inválida.${RESET}"
+            echo "${RED}Escolha inválida. Digite 1 ou 2.${RESET}"
             ;;
     esac
 done
@@ -297,21 +346,43 @@ if [ "$PROJECT_TYPE" = "Laravel" ] && [ -f .env ]; then
     echo "${BLUE}│       🗄️ [7/8] CONFIGURAR BANCO (.ENV)      │${RESET}"
     echo "${BLUE}└─────────────────────────────────────────────┘${RESET}"
     echo "${YELLOW}Deseja configurar a conexão com banco de dados?${RESET}"
+    echo "1) ✅ Sim"
+    echo "2) ❌ Não"
     echo ""
-    select configure_db in "✅ Sim" "❌ Não"; do
-        case $configure_db in
-            "✅ Sim")
+    
+    while true; do
+        read -p "${BLUE}Escolha (1 ou 2): ${RESET}" choice
+        case $choice in
+            1)
                 echo "${GREEN}✅ Configurando conexão com banco...${RESET}"
+                echo ""
+                echo "${YELLOW}Tipo de banco:${RESET}"
+                echo "1) 🐬 MySQL"
+                echo "2) 🪶 SQLite"
+                echo ""
                 
-                select db_type in "🐬 MySQL" "🪶 SQLite"; do
-                    case $db_type in
-                        "🐬 MySQL")
+                while true; do
+                    read -p "${BLUE}Escolha (1 ou 2): ${RESET}" db_choice
+                    case $db_choice in
+                        1)
+                            echo "${GREEN}🐬 MySQL selecionado${RESET}"
                             read -p "${BLUE}💭 Host do banco (localhost): ${RESET}" DB_HOST
                             DB_HOST=${DB_HOST:-localhost}
+                            
                             read -p "${BLUE}💭 Usuário do banco: ${RESET}" DB_USERNAME
+                            while [[ -z "$DB_USERNAME" ]]; do
+                                echo "${ERROR} Usuário é obrigatório!"
+                                read -p "${BLUE}💭 Usuário do banco: ${RESET}" DB_USERNAME
+                            done
+                            
                             read -s -p "${BLUE}💭 Senha do banco: ${RESET}" DB_PASSWORD
                             echo ""
+                            
                             read -p "${BLUE}💭 Nome do banco: ${RESET}" DB_DATABASE
+                            while [[ -z "$DB_DATABASE" ]]; do
+                                echo "${ERROR} Nome do banco é obrigatório!"
+                                read -p "${BLUE}💭 Nome do banco: ${RESET}" DB_DATABASE
+                            done
                             
                             # Atualizar .env
                             sed -i "s/DB_CONNECTION=.*/DB_CONNECTION=mysql/" .env
@@ -323,7 +394,8 @@ if [ "$PROJECT_TYPE" = "Laravel" ] && [ -f .env ]; then
                             echo "${CHECK} MySQL configurado!"
                             break
                             ;;
-                        "🪶 SQLite")
+                        2)
+                            echo "${GREEN}🪶 SQLite selecionado${RESET}"
                             mkdir -p database
                             touch database/database.sqlite
                             sudo chown www-data:www-data database/database.sqlite
@@ -334,28 +406,47 @@ if [ "$PROJECT_TYPE" = "Laravel" ] && [ -f .env ]; then
                             echo "${CHECK} SQLite configurado!"
                             break
                             ;;
+                        *)
+                            echo "${RED}Escolha inválida. Digite 1 ou 2.${RESET}"
+                            ;;
                     esac
                 done
                 
                 # Migrations
+                echo ""
                 echo "${YELLOW}Executar migrations?${RESET}"
-                select run_migrations in "✅ Sim" "❌ Não"; do
-                    case $run_migrations in
-                        "✅ Sim")
-                            php artisan migrate --force
-                            echo "${CHECK} Migrations executadas!"
+                echo "1) ✅ Sim"
+                echo "2) ❌ Não"
+                
+                while true; do
+                    read -p "${BLUE}Escolha (1 ou 2): ${RESET}" mig_choice
+                    case $mig_choice in
+                        1)
+                            echo "${BLUE}🔄 Executando migrations...${RESET}"
+                            if php artisan migrate --force; then
+                                echo "${CHECK} Migrations executadas!"
+                            else
+                                echo "${WARN} Erro ao executar migrations"
+                            fi
                             break
                             ;;
-                        "❌ Não")
+                        2)
+                            echo "${YELLOW}❌ Migrations não executadas${RESET}"
                             break
+                            ;;
+                        *)
+                            echo "${RED}Escolha inválida. Digite 1 ou 2.${RESET}"
                             ;;
                     esac
                 done
                 break
                 ;;
-            "❌ Não")
+            2)
                 echo "${YELLOW}❌ Configuração de banco ignorada${RESET}"
                 break
+                ;;
+            *)
+                echo "${RED}Escolha inválida. Digite 1 ou 2.${RESET}"
                 ;;
         esac
     done
