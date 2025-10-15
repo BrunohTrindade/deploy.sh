@@ -42,11 +42,11 @@ echo "2) 🌐 Git Clone"
 echo ""
 
 while true; do
-    read -p "${BLUE}Escolha (1 ou 2): ${RESET}" choice
+    read -p "${BLUE}Escolha (1 ou 2): ${RESET}" choice < /dev/tty
     case $choice in
         1)
             echo "${GREEN}📁 Você escolheu: Diretório local${RESET}"
-            read -p "${BLUE}💭 Digite o caminho completo do projeto: ${RESET}" PROJECT_PATH
+            read -p "${BLUE}💭 Digite o caminho completo do projeto: ${RESET}" PROJECT_PATH < /dev/tty
             
             if [[ -z "$PROJECT_PATH" ]]; then
                 echo "${ERROR} Caminho não pode estar vazio!"
@@ -63,7 +63,7 @@ while true; do
             ;;
         2)
             echo "${GREEN}🌐 Você escolheu: Git Clone${RESET}"
-            read -p "${BLUE}💭 Digite o link do repositório Git: ${RESET}" GIT_LINK
+            read -p "${BLUE}💭 Digite o link do repositório Git: ${RESET}" GIT_LINK < /dev/tty
             
             if [[ -z "$GIT_LINK" ]]; then
                 echo "${ERROR} Link não pode estar vazio!"
@@ -152,11 +152,11 @@ echo "2) 🔌 Porta"
 echo ""
 
 while true; do
-    read -p "${BLUE}Escolha (1 ou 2): ${RESET}" choice
+    read -p "${BLUE}Escolha (1 ou 2): ${RESET}" choice < /dev/tty
     case $choice in
         1)
             echo "${GREEN}🌍 Você escolheu: Acesso por domínio${RESET}"
-            read -p "${BLUE}💭 Digite o domínio (ex: exemplo.com): ${RESET}" DOMAIN
+            read -p "${BLUE}💭 Digite o domínio (ex: exemplo.com): ${RESET}" DOMAIN < /dev/tty
             
             if [[ -z "$DOMAIN" ]]; then
                 echo "${ERROR} Domínio não pode estar vazio!"
@@ -185,7 +185,7 @@ while true; do
             fi
             
             echo "${GREEN}💡 Porta sugerida livre: ${YELLOW}$SUGGESTED_PORT${RESET}"
-            read -p "${BLUE}💭 Digite a porta desejada (padrão $SUGGESTED_PORT): ${RESET}" CUSTOM_PORT
+            read -p "${BLUE}💭 Digite a porta desejada (padrão $SUGGESTED_PORT): ${RESET}" CUSTOM_PORT < /dev/tty
             PORT=${CUSTOM_PORT:-$SUGGESTED_PORT}
             
             if ss -tuln | grep -q ":$PORT "; then
@@ -351,7 +351,7 @@ if [ "$PROJECT_TYPE" = "Laravel" ] && [ -f .env ]; then
     echo ""
     
     while true; do
-        read -p "${BLUE}Escolha (1 ou 2): ${RESET}" choice
+        read -p "${BLUE}Escolha (1 ou 2): ${RESET}" choice < /dev/tty
         case $choice in
             1)
                 echo "${GREEN}✅ Configurando conexão com banco...${RESET}"
@@ -362,26 +362,26 @@ if [ "$PROJECT_TYPE" = "Laravel" ] && [ -f .env ]; then
                 echo ""
                 
                 while true; do
-                    read -p "${BLUE}Escolha (1 ou 2): ${RESET}" db_choice
+                    read -p "${BLUE}Escolha (1 ou 2): ${RESET}" db_choice < /dev/tty
                     case $db_choice in
                         1)
                             echo "${GREEN}🐬 MySQL selecionado${RESET}"
-                            read -p "${BLUE}💭 Host do banco (localhost): ${RESET}" DB_HOST
+                            read -p "${BLUE}💭 Host do banco (localhost): ${RESET}" DB_HOST < /dev/tty
                             DB_HOST=${DB_HOST:-localhost}
                             
-                            read -p "${BLUE}💭 Usuário do banco: ${RESET}" DB_USERNAME
+                            read -p "${BLUE}💭 Usuário do banco: ${RESET}" DB_USERNAME < /dev/tty
                             while [[ -z "$DB_USERNAME" ]]; do
                                 echo "${ERROR} Usuário é obrigatório!"
-                                read -p "${BLUE}💭 Usuário do banco: ${RESET}" DB_USERNAME
+                                read -p "${BLUE}💭 Usuário do banco: ${RESET}" DB_USERNAME < /dev/tty
                             done
                             
-                            read -s -p "${BLUE}💭 Senha do banco: ${RESET}" DB_PASSWORD
+                            read -s -p "${BLUE}💭 Senha do banco: ${RESET}" DB_PASSWORD < /dev/tty
                             echo ""
                             
-                            read -p "${BLUE}💭 Nome do banco: ${RESET}" DB_DATABASE
+                            read -p "${BLUE}💭 Nome do banco: ${RESET}" DB_DATABASE < /dev/tty
                             while [[ -z "$DB_DATABASE" ]]; do
                                 echo "${ERROR} Nome do banco é obrigatório!"
-                                read -p "${BLUE}💭 Nome do banco: ${RESET}" DB_DATABASE
+                                read -p "${BLUE}💭 Nome do banco: ${RESET}" DB_DATABASE < /dev/tty
                             done
                             
                             # Atualizar .env
@@ -419,7 +419,7 @@ if [ "$PROJECT_TYPE" = "Laravel" ] && [ -f .env ]; then
                 echo "2) ❌ Não"
                 
                 while true; do
-                    read -p "${BLUE}Escolha (1 ou 2): ${RESET}" mig_choice
+                    read -p "${BLUE}Escolha (1 ou 2): ${RESET}" mig_choice < /dev/tty
                     case $mig_choice in
                         1)
                             echo "${BLUE}🔄 Executando migrations...${RESET}"
