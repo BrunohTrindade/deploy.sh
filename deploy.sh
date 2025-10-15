@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==========================================
-# 🚀 DEPLOY AUTOMÁTICO APACHE v3.2
-# Autor: Bruno Trindade + GPT-5
+# 🚀 DEPLOY AUTOMÁTICO APACHE v3.3
+# Autor: Bruno Trindade + GPT-5  
 # Sistema: Ubuntu / Debian
 # ==========================================
 # curl -s https://raw.githubusercontent.com/BrunohTrindade/deploy.sh/refs/heads/main/deploy.sh | bash
@@ -25,7 +25,7 @@ mkdir -p "$LOG_DIR"
 exec > >(tee -a "$LOG_DIR/deploy_$(date +%Y%m%d_%H%M%S).log") 2>&1
 
 echo "${BLUE}==========================================${RESET}"
-echo "${GREEN}      🚀 DEPLOY AUTOMÁTICO APACHE v3.2${RESET}"
+echo "${GREEN}      🚀 DEPLOY AUTOMÁTICO APACHE v3.3${RESET}"
 echo "${BLUE}==========================================${RESET}"
 echo ""
 
@@ -230,15 +230,202 @@ cd "$PROJECT_PATH" || exit
 case $project_type in
     "⚡ Laravel")
         echo "${BLUE}⚡ Processando projeto Laravel...${RESET}"
-        command -v composer &>/dev/null && { composer install; [ ! -f .env ] && cp .env.example .env; php artisan key:generate; } || echo "${WARN} Composer não encontrado"
+        
+        # Verificar e instalar Composer se necessário
+        if ! command -v composer &>/dev/null; then
+            echo "${WARN} Composer não encontrado. Instalando...${RESET}"
+            
+            # Verificar se PHP está instalado
+            if ! command -v php &>/dev/null; then
+                echo "${BLUE}📦 Instalando PHP e extensões necessárias...${RESET}"
+                sudo apt update
+                sudo apt install -y php php-cli php-fpm php-mysql php-xml php-mbstring php-curl php-zip php-bcmath php-tokenizer php-json php-gd unzip
+            fi
+            
+            # Baixar e instalar Composer
+            echo "${BLUE}📦 Baixando e instalando Composer...${RESET}"
+            cd /tmp || exit
+            curl -sS https://getcomposer.org/installer -o composer-setup.php
+            sudo php composer-setup.php --install-dir=/usr/local/bin --filename=composer
+            rm composer-setup.php
+            cd "$PROJECT_PATH" || exit
+            
+            if command -v composer &>/dev/null; then
+                echo "${CHECK} Composer instalado com sucesso!"
+            else
+                echo "${ERROR} Falha ao instalar Composer"
+                exit 1
+            fi
+        else
+            echo "${CHECK} Composer já está instalado"
+        fi
+        
+        # Corrigir ownership do Git para o diretório atual
+        echo "${BLUE}🔧 Corrigindo permissões Git...${RESET}"
+        git config --global --add safe.directory "$PROJECT_PATH" 2>/dev/null || true
+        
+        # Verificar se existe composer.json
+        if [ ! -f "composer.json" ]; then
+            echo "${ERROR} Arquivo composer.json não encontrado no projeto Laravel!"
+            echo "${YELLOW}💡 Certifique-se de que este é um projeto Laravel válido${RESET}"
+        else
+            # Corrigir permissões antes de instalar
+            echo "${BLUE}🔒 Ajustando permissões para instalação segura...${RESET}"
+            sudo chown -R "$SUPERVISOR_USER":www-data "$PROJECT_PATH"
+            
+            # Remover composer.lock se houver incompatibilidade de versão PHP
+            if [ -f "composer.lock" ]; then
+                echo "${BLUE}🧹 Verificando compatibilidade do composer.lock...${RESET}"
+                # Tentar detectar incompatibilidade de PHP
+                if composer check-platform-reqs 2>&1 | grep -q "does not satisfy that requirement"; then
+                    echo "${WARN} Detectada incompatibilidade de versão PHP. Removendo composer.lock...${RESET}"
+                    rm composer.lock
+                    echo "${CHECK} composer.lock removido. Será recriado com versão PHP atual."
+                fi
+            fi
+            
+            # Instalar dependências do Composer como usuário correto
+            echo "${BLUE}📦 Instalando dependências do Composer...${RESET}"
+            sudo -u "$SUPERVISOR_USER" COMPOSER_ALLOW_SUPERUSER=1 composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev 2>/dev/null || {
+                echo "${WARN} Tentando com composer update...${RESET}"
+                sudo -u "$SUPERVISOR_USER" COMPOSER_ALLOW_SUPERUSER=1 composer update --no-interaction --prefer-dist --optimize-autoloader --no-dev
+            }
+            
+            # Verificar se a instalação foi bem-sucedida
+            if [ -f "vendor/autoload.php" ]; then
+                echo "${CHECK} Dependências do Composer instaladas com sucesso!"
+                
+                # Configurar arquivo .env
+                if [ ! -f .env ]; then
+                    if [ -f .env.example ]; then
+                        cp .env.example .env
+                        echo "${CHECK} Arquivo .env criado a partir do .env.example"
+                    else
+                        echo "${WARN} Arquivo .env.example não encontrado"
+                        # Criar um .env básico
+                        cat > .env << EOF
+APP_NAME=Laravel
+APP_ENV=production
+APP_KEY=
+APP_DEBUG=false
+APP_URL=http://localhost
+
+LOG_CHANNEL=stack
+LOG_LEVEL=error
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=laravel
+DB_USERNAME=root
+DB_PASSWORD=
+
+BROADCAST_DRIVER=log
+CACHE_DRIVER=file
+QUEUE_CONNECTION=sync
+SESSION_DRIVER=file
+SESSION_LIFETIME=120
+
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.mailtrap.io
+MAIL_PORT=2525
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_ENCRYPTION=null
+MAIL_FROM_ADDRESS=null
+MAIL_FROM_NAME="\${APP_NAME}"
+
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=us-east-1
+AWS_BUCKET=
+EOF
+                        echo "${CHECK} Arquivo .env básico criado"
+                    fi
+                else
+                    echo "${CHECK} Arquivo .env já existe"
+                fi
+                
+                # Ajustar permissões do .env
+                sudo chown "$SUPERVISOR_USER":www-data .env
+                sudo chmod 640 .env
+                
+                # Gerar chave da aplicação
+                echo "${BLUE}🔑 Gerando chave da aplicação...${RESET}"
+                sudo -u "$SUPERVISOR_USER" php artisan key:generate --force
+                echo "${CHECK} Chave da aplicação gerada!"
+                
+                # Otimizar cache de configuração para produção
+                echo "${BLUE}⚡ Otimizando cache para produção...${RESET}"
+                sudo -u "$SUPERVISOR_USER" php artisan config:cache 2>/dev/null || true
+                sudo -u "$SUPERVISOR_USER" php artisan route:cache 2>/dev/null || true
+                sudo -u "$SUPERVISOR_USER" php artisan view:cache 2>/dev/null || true
+                echo "${CHECK} Cache otimizado!"
+                
+            else
+                echo "${ERROR} Falha na instalação das dependências do Composer"
+                echo "${YELLOW}💡 Tente executar manualmente: composer install${RESET}"
+            fi
+        fi
         ;;
     "🌟 Vue"|"🟢 Node.js")
         echo "${BLUE}🌟 Processando projeto ${project_type}...${RESET}"
-        command -v npm &>/dev/null && { npm install; [[ "$project_type" == *"Vue"* ]] && npm run build; } || echo "${WARN} npm não encontrado"
+        
+        # Verificar e instalar Node.js/NPM se necessário
+        if ! command -v npm &>/dev/null; then
+            echo "${WARN} NPM não encontrado. Instalando Node.js...${RESET}"
+            curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+            sudo apt-get install -y nodejs
+            
+            if command -v npm &>/dev/null; then
+                echo "${CHECK} Node.js e NPM instalados com sucesso!"
+            else
+                echo "${ERROR} Falha ao instalar Node.js/NPM"
+            fi
+        else
+            echo "${CHECK} NPM já está instalado"
+        fi
+        
+        if command -v npm &>/dev/null && [ -f "package.json" ]; then
+            echo "${BLUE}📦 Instalando dependências do NPM...${RESET}"
+            sudo -u "$SUPERVISOR_USER" npm install
+            
+            if [[ "$project_type" == *"Vue"* ]]; then
+                echo "${BLUE}🏗️ Fazendo build do projeto Vue...${RESET}"
+                sudo -u "$SUPERVISOR_USER" npm run build
+            fi
+            echo "${CHECK} Dependências do NPM instaladas!"
+        else
+            echo "${WARN} package.json não encontrado ou NPM não disponível"
+        fi
         ;;
     "🐍 Python")
         echo "${BLUE}🐍 Processando projeto Python...${RESET}"
-        command -v pip &>/dev/null && pip install -r requirements.txt || echo "${WARN} pip não encontrado"
+        
+        # Verificar se requirements.txt existe
+        if [ -f "requirements.txt" ]; then
+            if command -v pip3 &>/dev/null; then
+                echo "${BLUE}📦 Instalando dependências do Python...${RESET}"
+                sudo -u "$SUPERVISOR_USER" pip3 install -r requirements.txt
+                echo "${CHECK} Dependências do Python instaladas!"
+            elif command -v pip &>/dev/null; then
+                echo "${BLUE}📦 Instalando dependências do Python...${RESET}"
+                sudo -u "$SUPERVISOR_USER" pip install -r requirements.txt
+                echo "${CHECK} Dependências do Python instaladas!"
+            else
+                echo "${WARN} pip não encontrado. Instalando...${RESET}"
+                sudo apt update
+                sudo apt install -y python3-pip
+                sudo -u "$SUPERVISOR_USER" pip3 install -r requirements.txt
+                echo "${CHECK} Pip instalado e dependências instaladas!"
+            fi
+        else
+            echo "${WARN} Arquivo requirements.txt não encontrado"
+        fi
         ;;
     *)
         echo "${YELLOW}📄 Projeto HTML/PHP - Nenhuma dependência a instalar${RESET}"

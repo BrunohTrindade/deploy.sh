@@ -1,9 +1,9 @@
-# 🚀 Deploy Automático Apache v3.2
+# 🚀 Deploy Automático Apache v3.3
 
 <div align="center">
 
 ![Deploy](https://img.shields.io/badge/Deploy-Automático-brightgreen?style=for-the-badge&logo=apache)
-![Version](https://img.shields.io/badge/Version-3.2-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-3.3-blue?style=for-the-badge)
 ![OS](https://img.shields.io/badge/OS-Ubuntu%20%7C%20Debian-orange?style=for-the-badge&logo=linux)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
 
@@ -27,7 +27,8 @@ Este script **revolucionário** automatiza completamente o deploy de projetos we
 | 🔒 **Segurança** | Configuração automática de permissões |
 | ⚙️ **Apache Auto** | VirtualHost criado automaticamente |
 | 📦 **Dependências** | Instalação automática (Composer, NPM, PIP) |
-| 🗄️ **Banco Dados** | Configuração automática do .env (MySQL, PostgreSQL, SQLite) |
+| � **Fix Automático** | Corrige problemas de permissão, Git e compatibilidade |
+| �🗄️ **Banco Dados** | Configuração automática do .env (MySQL, PostgreSQL, SQLite) |
 | 🐬 **MySQL Auto** | Instalação automática do MySQL + Criação de bancos |
 | 🚀 **Migrations** | Execução opcional de migrations do Laravel |
 | �🔐 **SSL/HTTPS** | Certificado SSL com Certbot (Let's Encrypt) |
@@ -167,7 +168,27 @@ curl -s https://raw.githubusercontent.com/BrunohTrindade/deploy.sh/refs/heads/ma
 
 ---
 
-## 🐬 **MySQL: Instalação e Configuração Automática**
+## � **Correções Automáticas v3.3**
+
+### **🛠️ Problemas Corrigidos Automaticamente:**
+
+- ❌➡️✅ **Composer como root**: Executa como usuário correto
+- ❌➡️✅ **Git ownership**: Adiciona diretório ao safe.directory
+- ❌➡️✅ **PHP incompatível**: Remove composer.lock e atualiza dependências
+- ❌➡️✅ **Permissões**: Ajusta ownership antes da instalação
+- ❌➡️✅ **Cache produção**: Otimiza automaticamente para performance
+- ❌➡️✅ **Segurança .env**: Define permissões 640 no arquivo
+
+### **🎯 Fluxo de Recuperação:**
+1. **Detecta** problemas automaticamente
+2. **Remove** composer.lock se incompatível
+3. **Executa** composer update quando necessário  
+4. **Aplica** permissões corretas
+5. **Otimiza** cache para produção
+
+---
+
+## �🐬 **MySQL: Instalação e Configuração Automática**
 
 ### **🎯 O que o script faz com MySQL:**
 
@@ -240,6 +261,9 @@ Perfeito para **debug** e **auditoria** de deploys!
 | ❌ Migrations falham | Certifique-se que o banco foi criado antes de executar |
 | ❌ Falha instalação MySQL | Execute: `sudo apt update && sudo apt install mysql-server` |
 | ❌ Erro criar banco | Verifique permissões do usuário MySQL |
+| ❌ Composer como root | **CORRIGIDO v3.3**: Executa como usuário correto automaticamente |
+| ❌ Git ownership error | **CORRIGIDO v3.3**: Adiciona ao safe.directory automaticamente |
+| ❌ PHP version mismatch | **CORRIGIDO v3.3**: Remove composer.lock e atualiza automaticamente |
 
 ---
 
