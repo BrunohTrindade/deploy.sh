@@ -346,7 +346,8 @@ set_document_root() {
     esac
     
     # Usar configuração do arquivo deploy.config se disponível
-    if [[ -n "${PROJECT_DOC_ROOTS[$project_key]:-}" ]]; then
+    # Verificar se o array PROJECT_DOC_ROOTS está declarado e tem a chave
+    if declare -p PROJECT_DOC_ROOTS &>/dev/null && [[ -n "${PROJECT_DOC_ROOTS[$project_key]:-}" ]]; then
         DOC_ROOT="${PROJECT_PATH}/${PROJECT_DOC_ROOTS[$project_key]}"
     else
         # Fallback para configuração padrão
@@ -447,7 +448,12 @@ verify_project_structure() {
     log_info "Verificando arquivo inicial do projeto..."
     
     # Usar configuração dos arquivos índice se disponível
-    local index_files=("${INDEX_FILES[@]:-index.php index.html app.js main.py}")
+    local index_files
+    if declare -p INDEX_FILES &>/dev/null; then
+        index_files=("${INDEX_FILES[@]}")
+    else
+        index_files=("index.php" "index.html" "app.js" "main.py")
+    fi
     local found=false
     
     for file in "${index_files[@]}"; do
@@ -523,7 +529,7 @@ create_virtual_host() {
     </Directory>"
 
     # Adicionar headers de segurança se configurados
-    if [[ -n "${SECURITY_HEADERS[*]:-}" ]]; then
+    if declare -p SECURITY_HEADERS &>/dev/null && [[ ${#SECURITY_HEADERS[@]} -gt 0 ]]; then
         vhost_config+="\n\n    # Security headers"
         for header in "${SECURITY_HEADERS[@]}"; do
             vhost_config+="\n    $header"
@@ -547,7 +553,7 @@ create_virtual_host() {
         vhost_config+="\n\n    # Compression
     <IfModule mod_deflate.c>"
         
-        if [[ -n "${COMPRESSION_TYPES[*]:-}" ]]; then
+        if declare -p COMPRESSION_TYPES &>/dev/null && [[ ${#COMPRESSION_TYPES[@]} -gt 0 ]]; then
             for mime_type in "${COMPRESSION_TYPES[@]}"; do
                 vhost_config+="\n        AddOutputFilterByType DEFLATE $mime_type"
             done
@@ -590,7 +596,12 @@ create_virtual_host() {
 
 enable_apache_modules() {
     # Usar configuração dos módulos se disponível
-    local modules=("${APACHE_MODULES[@]:-rewrite proxy proxy_http headers ssl deflate}")
+    local modules
+    if declare -p APACHE_MODULES &>/dev/null; then
+        modules=("${APACHE_MODULES[@]}")
+    else
+        modules=("rewrite" "proxy" "proxy_http" "headers" "ssl" "deflate")
+    fi
     for module in "${modules[@]}"; do
         if sudo a2enmod "$module" >/dev/null 2>&1; then
             [[ "${VERBOSITY:-normal}" == "verbose" ]] && log_info "Módulo $module habilitado"
@@ -651,7 +662,12 @@ verify_php_requirements() {
     log_success "PHP $php_version detectado"
     
     # Verificar extensões essenciais usando configuração
-    local required_extensions=("${PHP_EXTENSIONS[@]:-mbstring xml ctype json bcmath openssl pdo tokenizer}")
+    local required_extensions
+    if declare -p PHP_EXTENSIONS &>/dev/null; then
+        required_extensions=("${PHP_EXTENSIONS[@]}")
+    else
+        required_extensions=("mbstring" "xml" "ctype" "json" "bcmath" "openssl" "pdo" "tokenizer")
+    fi
     local missing_extensions=()
     
     for ext in "${required_extensions[@]}"; do
