@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==========================================
-# 🚀 DEPLOY AUTOMÁTICO APACHE v3.5
+# 🚀 DEPLOY AUTOMÁTICO APACHE v3.6
 # Autor: Bruno Trindade + GPT-5  
 # Sistema: Ubuntu / Debian
 # ==========================================
@@ -80,7 +80,7 @@ rollback_deploy() {
 trap 'rollback_deploy' ERR
 
 echo "${BLUE}==========================================${RESET}"
-echo "${GREEN}      🚀 DEPLOY AUTOMÁTICO APACHE v3.5${RESET}"
+echo "${GREEN}      🚀 DEPLOY AUTOMÁTICO APACHE v3.6${RESET}"
 echo "${BLUE}==========================================${RESET}"
 echo ""
 
@@ -278,12 +278,26 @@ fi
 sudo a2enmod rewrite proxy proxy_http headers ssl > /dev/null 2>&1
 sudo a2ensite "${PROJECT_NAME}.conf" > /dev/null 2>&1
 
+# Verificar configuração do Apache
+echo "${BLUE}🔍 Verificando configuração do Apache...${RESET}"
+if sudo apache2ctl configtest 2>/dev/null; then
+    echo "${CHECK} Configuração do Apache válida"
+else
+    echo "${ERROR} Erro na configuração do Apache!"
+    sudo apache2ctl configtest
+    exit 1
+fi
+
+# Recarregar Apache para aplicar mudanças
+echo "${BLUE}🔄 Recarregando Apache para aplicar configurações...${RESET}"
+sudo systemctl reload apache2
+
 # ══════════════════════════════
 # 📦 8️⃣ INSTALAR DEPENDÊNCIAS
 # ══════════════════════════════
 echo ""
 echo "${BLUE}┌─────────────────────────────────────────────┐${RESET}"
-echo "${BLUE}│       📦 [8/10] INSTALAR DEPENDÊNCIAS       │${RESET}"
+echo "${BLUE}│       📦 [8/11] INSTALAR DEPENDÊNCIAS       │${RESET}"
 echo "${BLUE}└─────────────────────────────────────────────┘${RESET}"
 echo "${YELLOW}⚡ Instalando dependências do projeto...${RESET}"
 cd "$PROJECT_PATH" || exit
@@ -529,7 +543,7 @@ esac
 if [[ "$project_type" == "⚡ Laravel" ]] && [ -f .env ]; then
     echo ""
     echo "${BLUE}┌─────────────────────────────────────────────┐${RESET}"
-    echo "${BLUE}│      🗄️ [8.1/10] CONFIGURAR BANCO (.ENV)    │${RESET}"
+    echo "${BLUE}│      🗄️ [8.1/11] CONFIGURAR BANCO (.ENV)    │${RESET}"
     echo "${BLUE}└─────────────────────────────────────────────┘${RESET}"
     echo "${YELLOW}🔸 Deseja configurar a conexão com banco de dados?${RESET}"
     echo ""
@@ -755,11 +769,17 @@ if [[ "$project_type" == "⚡ Laravel" ]] && [ -f .env ]; then
                 select run_migrations in "✅ Sim" "❌ Não"; do
                     case $run_migrations in
                         "✅ Sim")
-                            echo "${BLUE}🚀 Executando migrations...${RESET}"
-                            if php artisan migrate --force 2>/dev/null; then
+                            echo "${BLUE}� Limpando cache de configuração...${RESET}"
+                            sudo -u "$SUPERVISOR_USER" php artisan config:clear 2>/dev/null || true
+                            echo "${CHECK} Cache de configuração limpo!"
+                            
+                            echo "${BLUE}�🚀 Executando migrations...${RESET}"
+                            if sudo -u "$SUPERVISOR_USER" php artisan migrate --force 2>/dev/null; then
                                 echo "${CHECK} Migrations executadas com sucesso!"
                             else
                                 echo "${WARN} Erro ao executar migrations (verifique se o banco existe)"
+                                echo "${BLUE}💡 Tentando mostrar erro detalhado...${RESET}"
+                                sudo -u "$SUPERVISOR_USER" php artisan migrate --force
                             fi
                             break
                             ;;
@@ -811,13 +831,97 @@ fi
 # ══════════════════════════════
 echo ""
 echo "${BLUE}┌─────────────────────────────────────────────┐${RESET}"
-echo "${BLUE}│         🔄 [10/11] FINALIZAR DEPLOY         │${RESET}"
+echo "${BLUE}│         🔄 [10/11] RECARREGAR APACHE        │${RESET}"
 echo "${BLUE}└─────────────────────────────────────────────┘${RESET}"
 echo "${YELLOW}� Recarregando Apache...${RESET}"
 sudo systemctl reload apache2
 
 # Desabilitar trap de erro - deploy concluído com sucesso
 trap - ERR
+
+# ══════════════════════════════
+# 🧪 TESTE FINAL DO DEPLOY
+# ══════════════════════════════
+echo ""
+echo "${BLUE}┌─────────────────────────────────────────────┐${RESET}"
+echo "${BLUE}│         🧪 [11/11] TESTE FINAL             │${RESET}"
+echo "${BLUE}└─────────────────────────────────────────────┘${RESET}"
+
+# Definir URL de teste
+if [ "$USE_PORT" = true ]; then
+    TEST_URL="http://localhost:$PORT"
+else
+    TEST_URL="http://$DOMAIN"
+fi
+
+echo "${YELLOW}🔍 Testando acesso ao site: $TEST_URL${RESET}"
+
+# Testar se o site responde
+if curl -s -f -o /dev/null "$TEST_URL" 2>/dev/null; then
+    echo "${CHECK} Site respondendo corretamente!"
+    
+    # Para projetos Laravel, testar se é realmente Laravel
+    if [[ "$project_type" == "⚡ Laravel" ]]; then
+        if curl -s "$TEST_URL" | grep -q "Laravel\|APP_NAME" 2>/dev/null; then
+            echo "${CHECK} Laravel detectado na resposta!"
+        else
+            echo "${WARN} Site responde mas pode não estar carregando o Laravel corretamente"
+        fi
+    fi
+else
+    echo "${ERROR} Site não está respondendo!"
+    echo "${YELLOW}🔧 Diagnóstico rápido:${RESET}"
+    
+    # Verificar se Apache está rodando
+    if systemctl is-active --quiet apache2; then
+        echo "${CHECK} Apache está rodando"
+    else
+        echo "${ERROR} Apache não está rodando!"
+        echo "${BLUE}Tentando iniciar Apache...${RESET}"
+        sudo systemctl start apache2
+    fi
+    
+    # Verificar se o site está habilitado
+    if sudo a2ensite "${PROJECT_NAME}.conf" >/dev/null 2>&1; then
+        echo "${CHECK} Site está habilitado"
+    else
+        echo "${ERROR} Problema ao habilitar site"
+    fi
+    
+    # Verificar se a porta está ouvindo
+    if [ "$USE_PORT" = true ]; then
+        if ss -tuln | grep -q ":$PORT "; then
+            echo "${CHECK} Porta $PORT está ouvindo"
+        else
+            echo "${ERROR} Porta $PORT não está ouvindo!"
+            echo "${YELLOW}Verifique se a porta foi adicionada ao ports.conf${RESET}"
+        fi
+    fi
+    
+    # Verificar se o DocumentRoot existe e tem arquivos
+    if [ -d "$DOC_ROOT" ]; then
+        echo "${CHECK} DocumentRoot ($DOC_ROOT) existe"
+        if [ "$(ls -A "$DOC_ROOT")" ]; then
+            echo "${CHECK} DocumentRoot contém arquivos"
+        else
+            echo "${ERROR} DocumentRoot está vazio!"
+        fi
+    else
+        echo "${ERROR} DocumentRoot ($DOC_ROOT) não existe!"
+    fi
+    
+    # Para Laravel, verificar se o index.php existe
+    if [[ "$project_type" == "⚡ Laravel" ]]; then
+        if [ -f "$DOC_ROOT/index.php" ]; then
+            echo "${CHECK} index.php do Laravel encontrado"
+        else
+            echo "${ERROR} index.php do Laravel não encontrado em $DOC_ROOT"
+        fi
+    fi
+    
+    echo "${YELLOW}💡 Tente acessar manualmente: $TEST_URL${RESET}"
+    echo "${YELLOW}💡 Verifique os logs: sudo tail -f /var/log/apache2/${PROJECT_NAME}_error.log${RESET}"
+fi
 
 # ══════════════════════════════
 # 🎉 FINALIZAÇÃO

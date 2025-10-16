@@ -1,15 +1,15 @@
-# 🚀 Deploy Automático Apache v4.0 (Refatorado)
+# 🚀 Deploy Automático Apache v3.6
 
 <div align="center">
 
 ![Deploy](https://img.shields.io/badge/Deploy-Automático-brightgreen?style=for-the-badge&logo=apache)
-![Version](https://img.shields.io/badge/Version-4.0-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-3.6-blue?style=for-the-badge)
 ![OS](https://img.shields.io/badge/OS-Ubuntu%20%7C%20Debian-orange?style=for-the-badge&logo=linux)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
 
 **🎯 Deploy seus projetos web em segundos com Apache configurado automaticamente!**
 
-**✨ NOVO: Versão completamente refatorada com estrutura modular, detecção automática e configuração flexível!**
+**✨ NOVO v3.6: Migrations com config:clear + Diagnóstico completo de deploy!**
 
 </div>
 
@@ -32,6 +32,8 @@ Este script **revolucionário** automatiza completamente o deploy de projetos we
 | 🔧 **Fix Automático** | Corrige problemas de permissão, Git e compatibilidade |
 | 🐘 **PHP Smart** | Verificação de compatibilidade de versão PHP |
 | 🔄 **Rollback Auto** | Reverte tudo automaticamente se algo falhar |
+| 🧪 **Teste Automático** | Valida se o site está funcionando após deploy |
+| 🔍 **Diagnóstico** | Identifica problemas automaticamente se algo falhar |
 | �🗄️ **Banco Dados** | Configuração automática do .env (MySQL, PostgreSQL, SQLite) |
 | 🐬 **MySQL Auto** | Instalação automática do MySQL + Criação de bancos |
 | 🚀 **Migrations** | Execução opcional de migrations do Laravel |
@@ -194,7 +196,48 @@ curl -s https://raw.githubusercontent.com/BrunohTrindade/deploy.sh/refs/heads/ma
 
 ---
 
-## � **Fix .env Database Connection v3.5**
+## 🧪 **Deploy Testing & Diagnostics v3.6**
+
+### **🎯 Novas Funcionalidades:**
+
+- **🔄 Config Clear**: Executa `php artisan config:clear` antes das migrations
+- **🧪 Teste Automático**: Valida se site está respondendo após deploy
+- **🔍 Diagnóstico Inteligente**: Identifica problemas automaticamente
+- **📊 Validação Apache**: Testa configuração antes de aplicar
+- **⚡ Reload Estratégico**: Recarrega Apache nos momentos certos
+
+### **🔧 Fluxo de Validação:**
+
+```bash
+# 🔄 Limpando cache de configuração...
+# ✅ Cache de configuração limpo!
+# 🚀 Executando migrations...
+# ✅ Migrations executadas com sucesso!
+
+# 🧪 [11/11] TESTE FINAL
+# 🔍 Testando acesso ao site: http://localhost:8082
+# ✅ Site respondendo corretamente!
+# ✅ Laravel detectado na resposta!
+```
+
+### **🚨 Diagnóstico Automático se Falhar:**
+
+```bash
+# ❌ Site não está respondendo!
+# 🔧 Diagnóstico rápido:
+# ✅ Apache está rodando
+# ✅ Site está habilitado  
+# ✅ Porta 8082 está ouvindo
+# ✅ DocumentRoot (/var/www/GPS-Tracker/public) existe
+# ✅ DocumentRoot contém arquivos
+# ✅ index.php do Laravel encontrado
+# 💡 Tente acessar manualmente: http://localhost:8082
+# 💡 Verifique os logs: sudo tail -f /var/log/apache2/GPS-Tracker_error.log
+```
+
+---
+
+## 🔧 **Fix .env Database Connection v3.5**
 
 ### **🐛 Problema Resolvido:**
 
