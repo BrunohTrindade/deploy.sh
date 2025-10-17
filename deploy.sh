@@ -378,23 +378,63 @@ case $project_type in
             echo "${BLUE}🔒 Ajustando permissões para instalação segura...${RESET}"
             sudo chown -R "$SUPERVISOR_USER":www-data "$PROJECT_PATH"
             
-            # Remover composer.lock se houver incompatibilidade de versão PHP
+            # Verificar e limpar problemas de dependências
+            echo "${BLUE}🧹 Verificando dependências e pacotes...${RESET}"
             if [ -f "composer.lock" ]; then
-                echo "${BLUE}🧹 Verificando compatibilidade do composer.lock...${RESET}"
-                # Tentar detectar incompatibilidade de PHP
+                echo "${BLUE}🔍 Analisando composer.lock...${RESET}"
+                
+                # Verificar incompatibilidade de PHP
                 if composer check-platform-reqs 2>&1 | grep -q "does not satisfy that requirement"; then
                     echo "${WARN} Detectada incompatibilidade de versão PHP. Removendo composer.lock...${RESET}"
                     rm composer.lock
                     echo "${CHECK} composer.lock removido. Será recriado com versão PHP atual."
                 fi
+                
+                # Verificar pacotes abandonados comuns
+                if grep -q "beyondcode/laravel-websockets\|pusher/pusher-php-server" composer.lock 2>/dev/null; then
+                    echo "${WARN} Detectados pacotes WebSocket potencialmente problemáticos${RESET}"
+                    echo "${YELLOW}💡 Considere usar Laravel Reverb ou Pusher ao invés de laravel-websockets${RESET}"
+                fi
+            fi
+            
+            # Verificar ServiceProviders problemáticos no config/app.php
+            if [ -f "config/app.php" ]; then
+                if grep -q "TelescopeServiceProvider" config/app.php; then
+                    echo "${YELLOW}🔭 Laravel Telescope detectado na configuração${RESET}"
+                    if ! grep -q "laravel/telescope" composer.json; then
+                        echo "${WARN} Telescope configurado mas não encontrado no composer.json${RESET}"
+                        echo "${YELLOW}💡 Para produção, remova TelescopeServiceProvider de config/app.php${RESET}"
+                    fi
+                fi
             fi
             
             # Instalar dependências do Composer como usuário correto
             echo "${BLUE}📦 Instalando dependências do Composer...${RESET}"
-            sudo -u "$SUPERVISOR_USER" COMPOSER_ALLOW_SUPERUSER=1 composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev 2>/dev/null || {
-                echo "${WARN} Tentando com composer update...${RESET}"
-                sudo -u "$SUPERVISOR_USER" COMPOSER_ALLOW_SUPERUSER=1 composer update --no-interaction --prefer-dist --optimize-autoloader --no-dev
-            }
+            
+            # Primeira tentativa: install padrão
+            if sudo -u "$SUPERVISOR_USER" COMPOSER_ALLOW_SUPERUSER=1 composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev 2>/dev/null; then
+                echo "${CHECK} Dependências instaladas com sucesso!"
+            else
+                echo "${WARN} Falha na instalação padrão. Tentando estratégias alternativas...${RESET}"
+                
+                # Segunda tentativa: com update
+                if sudo -u "$SUPERVISOR_USER" COMPOSER_ALLOW_SUPERUSER=1 composer update --no-interaction --prefer-dist --optimize-autoloader --no-dev 2>/dev/null; then
+                    echo "${CHECK} Dependências atualizadas com sucesso!"
+                else
+                    echo "${WARN} Falha com --no-dev. Tentando incluir dependências de desenvolvimento...${RESET}"
+                    
+                    # Terceira tentativa: incluir dev dependencies (pode resolver problemas de ServiceProvider)
+                    if sudo -u "$SUPERVISOR_USER" COMPOSER_ALLOW_SUPERUSER=1 composer install --no-interaction --prefer-dist --optimize-autoloader 2>/dev/null; then
+                        echo "${CHECK} Dependências instaladas com dev packages!"
+                        echo "${YELLOW}💡 Dependências de desenvolvimento foram incluídas${RESET}"
+                    else
+                        echo "${ERROR} Erro crítico na instalação do Composer. Detalhes:${RESET}"
+                        sudo -u "$SUPERVISOR_USER" COMPOSER_ALLOW_SUPERUSER=1 composer install --no-interaction --prefer-dist --optimize-autoloader
+                        echo "${YELLOW}💡 Verifique se há ServiceProviders faltando ou problemas de dependência${RESET}"
+                        exit 1
+                    fi
+                fi
+            fi
             
             # Verificar se a instalação foi bem-sucedida
             if [ -f "vendor/autoload.php" ]; then
@@ -458,6 +498,27 @@ EOF
                 # Ajustar permissões do .env
                 sudo chown "$SUPERVISOR_USER":www-data .env
                 sudo chmod 640 .env
+                
+                # Verificar ServiceProviders problemáticos
+                echo "${BLUE}🔍 Verificando ServiceProviders...${RESET}"
+                if sudo -u "$SUPERVISOR_USER" php artisan package:discover --ansi 2>&1 | grep -q "not found"; then
+                    echo "${WARN} ServiceProvider problemático detectado!${RESET}"
+                    echo "${YELLOW}💡 Limpando cache e tentando novamente...${RESET}"
+                    sudo -u "$SUPERVISOR_USER" php artisan config:clear 2>/dev/null || true
+                    sudo -u "$SUPERVISOR_USER" php artisan cache:clear 2>/dev/null || true
+                    sudo -u "$SUPERVISOR_USER" composer dump-autoload 2>/dev/null || true
+                    
+                    # Tentar novamente
+                    if sudo -u "$SUPERVISOR_USER" php artisan package:discover --ansi 2>/dev/null; then
+                        echo "${CHECK} ServiceProviders carregados com sucesso!"
+                    else
+                        echo "${ERROR} Erro persistente com ServiceProviders${RESET}"
+                        echo "${YELLOW}💡 Verifique manualmente: config/app.php ou providers específicos${RESET}"
+                        echo "${YELLOW}💡 Para Telescope: remova da produção ou instale: composer require laravel/telescope${RESET}"
+                    fi
+                else
+                    echo "${CHECK} ServiceProviders carregados corretamente!"
+                fi
                 
                 # Gerar chave da aplicação
                 echo "${BLUE}🔑 Gerando chave da aplicação...${RESET}"
